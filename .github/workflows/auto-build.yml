@@ -195,7 +195,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         working-directory: ./sealdice-core
         run: |
-          echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
           if [ $GOOS = 'windows' ]; then
             echo "BINARY_NAME=sealdice-core.exe" >> $GITHUB_ENV;
           else
@@ -256,7 +256,7 @@ jobs:
           path: ./sealdice-core/static/frontend
       - name: Set Env
         working-directory: ./sealdice-core
-        run: echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Build Binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -304,7 +304,7 @@ jobs:
           path: ./sealdice-core/static/frontend
       - name: Set env
         run: |
-          echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Build binary
         env:
           GOOS: android
@@ -333,7 +333,7 @@ jobs:
         with:
           submodules: true
       - name: Set Env
-        run: echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Get Core-android
         uses: actions/download-artifact@v3
         with:
