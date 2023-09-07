@@ -434,13 +434,8 @@ jobs:
           filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
           exclusions: '*.git* /*node_modules/* .editorconfig'
       - name: Archive Release !Windows
-        uses: thedoctor0/zip-release@0.7.1
         if: matrix.goos != 'windows'
-        with:
-          type: ${{ env.AEXT }}
-          filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
-          exclusions: '*.git* /*node_modules/* .editorconfig'
-          custom: --warning=no-file-changed
+        run: tar -czvf sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} . --warning=no-file-changed
 
       - name: Upload
         uses: actions/upload-artifact@v3
