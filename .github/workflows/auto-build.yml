@@ -151,29 +151,22 @@ jobs:
       - if: ${{ steps.cache-ui-dist.outputs.cache-hit == 'true' }}
         name: Show cache
         continue-on-error: true
-        run: ls ./dist
-
-      - name: Upload UI Using cache
-        uses: actions/upload-artifact@v3
-        if: ${{ steps.cache-ui-dist.outputs.cache-hit == 'true' }}
-        with:
-          name: sealdice-ui
-          path: ./sealdice-ui/dist
-
-      - if: ${{ steps.cache-ui-dist.outputs.cache-hit == 'true' }}
-        continue-on-error: true
-        run: exit 0
+        run: ls ./sealdice-ui/dist
 
       - name: Install Node
         uses: actions/setup-node@v3
+        if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         with:
           node-version: latest
       - name: Install Dependencies
+        if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-ui
         run: npm install
       - name: Build WebUI
+        if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-ui
         run: npm run build
+
       - name: Upload UI
         uses: actions/upload-artifact@v3
         with:
