@@ -435,7 +435,9 @@ jobs:
           exclusions: '*.git* /*node_modules/* .editorconfig'
       - name: Archive Release !Windows
         if: matrix.goos != 'windows'
-        run: tar -czvf sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} . --warning=no-file-changed
+        run: |
+          tar -czvf /tmp/sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} . --warning=no-file-changed
+          cp /tmp/sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} ./
 
       - name: Upload
         uses: actions/upload-artifact@v3
