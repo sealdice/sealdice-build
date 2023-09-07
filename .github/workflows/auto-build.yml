@@ -416,6 +416,7 @@ jobs:
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
+
       - name: Set Archive Extension Default
         run: |
           echo "AEXT=tar" >> $GITHUB_ENV;
@@ -431,6 +432,8 @@ jobs:
           type: ${{ env.AEXT }}
           filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
           exclusions: '*.git* /*node_modules/* .editorconfig'
+          custom: --ignore-failed-read
+
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
