@@ -95,7 +95,7 @@ jobs:
         run: |
           if [ $GOOS = "windows" ]; then export BINARY_SUFFIX=".exe"; fi
           export BINARY_NAME="go-cqhttp$BINARY_SUFFIX"
-          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${COMMIT_ID::7}-sealdicefork"
+          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID::7}-sealdicefork"
           go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
       - name: Upload Gocqhttp
         uses: actions/upload-artifact@v3
