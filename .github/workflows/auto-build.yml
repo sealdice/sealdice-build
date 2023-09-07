@@ -133,6 +133,37 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: true
+
+      - name: Get Commit ID
+        run: |
+          cd sealdice-ui
+          echo "UI_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
+
+      - name: Cache ui dist get
+        id: cache-ui-dist
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-ui-dist
+        with:
+          path: ./sealdice-ui/dist
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.UI_CID }}
+
+      - if: ${{ steps.cache-npm.outputs.cache-hit == 'true' }}
+        name: Show cache
+        continue-on-error: true
+        run: ls ./dist
+
+      - name: Upload UI Using cache
+        uses: actions/upload-artifact@v3
+        if: ${{ steps.cache-npm.outputs.cache-hit == 'true' }}
+        with:
+          name: sealdice-ui
+          path: ./sealdice-ui/dist
+
+      - if: ${{ steps.cache-npm.outputs.cache-hit == 'true' }}
+        continue-on-error: true
+        run: exit 0
+
       - name: Install Node
         uses: actions/setup-node@v3
         with:
