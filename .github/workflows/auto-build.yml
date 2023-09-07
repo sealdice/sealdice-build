@@ -446,7 +446,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
-          path: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
+          path: ./sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
 
   clear-temp-artifact:
     name: Clear Temp Artifacts
