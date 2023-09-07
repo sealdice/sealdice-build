@@ -426,12 +426,21 @@ jobs:
         run: |
           echo "AEXT=zip" >> $GITHUB_ENV;
           echo "AEXTF=zip" >> $GITHUB_ENV;
-      - name: Archive Release
+      - name: Archive Release Windows
         uses: thedoctor0/zip-release@0.7.1
+        if: matrix.goos == 'windows'
         with:
           type: ${{ env.AEXT }}
           filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
-          exclusions: contains('*.git* /*node_modules/* .editorconfig . ', sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }})
+          exclusions: contains('*.git* /*node_modules/* .editorconfig ', sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }})
+      - name: Archive Release !Windows
+        uses: thedoctor0/zip-release@0.7.1
+        if: matrix.goos != 'windows'
+        with:
+          type: ${{ env.AEXT }}
+          filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
+          exclusions: contains('*.git* /*node_modules/* .editorconfig ', sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }})
+          custom: --ignore-failed-read
 
       - name: Upload
         uses: actions/upload-artifact@v3
