@@ -435,7 +435,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_android_arm64
-          path: ./sealdice-android/app/build/outputs/apk/debug/sealdice-android_${{ env.PROJECT_VERSION }}.apk
+          path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION }}_arm64.apk
 
   pc-pack:
     name: PC Pack
@@ -478,42 +478,100 @@ jobs:
       - name: Set Execute Attribute
         if: matrix.goos != 'windows'
         run: chmod +x ./sealdice-core
-
-      - name: Set Archive Extension Default
-        run: |
-          echo "AEXT=tar" >> $GITHUB_ENV;
-          echo "AEXTF=tar.gz" >> $GITHUB_ENV;
-      - name: Set Archive Extension Windows
-        if: matrix.goos == 'windows'
-        run: |
-          echo "AEXT=zip" >> $GITHUB_ENV;
-          echo "AEXTF=zip" >> $GITHUB_ENV;
-      - name: Archive Release Windows
-        uses: thedoctor0/zip-release@0.7.1
-        if: matrix.goos == 'windows'
-        with:
-          type: ${{ env.AEXT }}
-          filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
-          exclusions: '*.git* /*node_modules/* .editorconfig'
-      - name: Archive Release !Windows
-        if: matrix.goos != 'windows'
-        run: |
-          tar --exclude='.DS_Store' -czvf /tmp/sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} . --warning=no-file-changed
-          cp /tmp/sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} ./
-
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
-          name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
-          path: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
+          name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: .
+
+  preparation:
+    name: Compressed Files Preparation
+    runs-on: ubuntu-latest
+    needs:
+      - pc-pack
+      - android-build
+    strategy:
+      matrix:
+        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64, android/arm64
+        goos: [ linux, windows, darwin ]
+        goarch: [ '386', amd64, arm64 ]
+        exclude:
+          - goos: linux
+            goarch: '386'
+          - goos: windows
+            goarch: arm64
+          - goos: darwin
+            goarch: '386'
+        include:
+          - goos: android
+            goarch: arm64
+    steps:
+      - name: Set Env
+        run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
+      - name: Get Files
+        uses: actions/download-artifact@v3
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ./temp/
+      - name: Compress (default)
+        if: matrix.goos != 'windows' && matrix.goos != 'android'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          tar -zcvf sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz ./temp;
+          echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
+      - name: Compress (windows)
+        if: matrix.goos == 'windows'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          zip -r sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip ./temp
+          echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
+      - name: Skip Compress (android)
+        if: matrix.goos == 'android'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mv ./temp/sealdice_${PROJECT_VERSION}_${GOARCH}.apk .
+          echo "DIST=sealdice_${PROJECT_VERSION}_${GOARCH}.apk" >> $GITHUB_ENV;
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: sealdice_prerelease
+          path: ${{ env.DIST }}
+
+  prerelease:
+    name: Prerelease
+    runs-on: ubuntu-latest
+    needs:
+      - preparation
+    permissions:
+      contents: write
+    steps:
+      - name: Get Files
+        uses: actions/download-artifact@v3
+        with:
+          name: sealdice_prerelease
+          path: ./dist/
+      - name: Prerelease
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Latest Build
+          tag_name: pre-release
+          files: ./dist/sealdice*
+          body: "> ⚠️注意️️：这是自动构建的预发布版本，非正式版本！"
+          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   clear-temp-artifact:
     name: Clear Temp Artifacts
     if: always()
     runs-on: ubuntu-latest
     needs:
-      - pc-pack
-      - android-build
+      - prerelease
     steps:
       - uses: geekyeggo/delete-artifact@v2
         with:
@@ -522,3 +580,4 @@ jobs:
             go-cqhttp*
             sealdice-ui
             sealdice-core*
+            sealdice-prerelease
