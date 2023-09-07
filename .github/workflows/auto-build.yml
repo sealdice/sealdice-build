@@ -439,7 +439,7 @@ jobs:
         with:
           type: ${{ env.AEXT }}
           filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
-          exclusions: contains('*.git* /*node_modules/* .editorconfig . ', sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }})
+          exclusions: contains('*.git* /*node_modules/* .editorconfig ', sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }})
           custom: --ignore-failed-read
 
       - name: Upload
