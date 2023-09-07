@@ -417,7 +417,8 @@ jobs:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
       - name: Set Execute Attribute
-        run: chmod +x ./sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+        if: matrix.goos != 'windows'
+        run: chmod +x ./sealdice-core
 
       - name: Set Archive Extension Default
         run: |
