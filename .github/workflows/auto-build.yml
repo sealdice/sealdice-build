@@ -411,6 +411,11 @@ jobs:
         with:
           name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./go-cqhttp/
+      - name: Get Core
+        uses: actions/download-artifact@v3
+        with:
+          name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: .
 
       - name: Set Archive Extension Default
         run: |
