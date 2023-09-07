@@ -439,7 +439,7 @@ jobs:
       - name: Archive Release !Windows
         if: matrix.goos != 'windows'
         run: |
-          tar --disable-copyfile --exclude='.DS_Store' -czvf /tmp/sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} . --warning=no-file-changed
+          tar --exclude='.DS_Store' -czvf /tmp/sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} . --warning=no-file-changed
           cp /tmp/sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }} ./
 
       - name: Upload
