@@ -148,19 +148,19 @@ jobs:
           path: ./sealdice-ui/dist
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.UI_CID }}
 
-      - if: ${{ steps.cache-npm.outputs.cache-hit == 'true' }}
+      - if: ${{ steps.cache-ui-dist.outputs.cache-hit == 'true' }}
         name: Show cache
         continue-on-error: true
         run: ls ./dist
 
       - name: Upload UI Using cache
         uses: actions/upload-artifact@v3
-        if: ${{ steps.cache-npm.outputs.cache-hit == 'true' }}
+        if: ${{ steps.cache-ui-dist.outputs.cache-hit == 'true' }}
         with:
           name: sealdice-ui
           path: ./sealdice-ui/dist
 
-      - if: ${{ steps.cache-npm.outputs.cache-hit == 'true' }}
+      - if: ${{ steps.cache-ui-dist.outputs.cache-hit == 'true' }}
         continue-on-error: true
         run: exit 0
 
