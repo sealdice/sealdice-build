@@ -517,8 +517,8 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          tar -zcvf sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -C ./temp .;
-          echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
+          tar -zcvf sealdice_core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -C ./temp .;
+          echo "DIST=sealdice_core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
       - name: Compress (windows)
         if: matrix.goos == 'windows'
         env:
@@ -526,8 +526,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           cd ./temp
-          zip -r ../sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip .
-          echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
+          zip -r ../sealdice_core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip .
+          echo "DIST=sealdice_core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
       - name: Skip Compress (android)
         if: matrix.goos == 'android'
         env:
