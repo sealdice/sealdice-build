@@ -539,8 +539,8 @@ jobs:
         env:
           GOARCH: arm64
         run: |
-          cp ./sealdice-android/app/build/outputs/apk/release/sealdice_android_${{ env.PROJECT_VERSION }}_arm64.apk ./sealdice_android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.apk
-          echo "DIST=sealdice_android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.apk" >> $GITHUB_ENV;
+          cp ./sealdice-android/app/build/outputs/apk/release/sealdice_android_${{ env.PROJECT_VERSION }}_arm64.apk ./sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.apk
+          echo "DIST=sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.apk" >> $GITHUB_ENV;
       - name: Upload APK to dist
         uses: actions/upload-artifact@v3
         with:
@@ -586,9 +586,6 @@ jobs:
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
-      - name: Set Execute Attribute
-        if: matrix.goos != 'windows'
-        run: chmod +x ./sealdice-core
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
@@ -627,8 +624,9 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          tar -zcvf sealdice_core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -C ./temp .;
-          echo "DIST=sealdice_core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
+          chmod +x ./temp/sealdice-core
+          tar -zcvf sealdice-core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -C ./temp .;
+          echo "DIST=sealdice-core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
 
       - name: Compress (windows)
         if: matrix.goos == 'windows'
@@ -637,8 +635,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           cd ./temp
-          zip -r ../sealdice_core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip .
-          echo "DIST=sealdice_core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
+          zip -r ../sealdice-core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip .
+          echo "DIST=sealdice-core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
 
       - name: Upload
         uses: actions/upload-artifact@v3
@@ -667,8 +665,8 @@ jobs:
       - name: Pack All platform
         run: |
           cd ./dist
-          mv ./sealdice_core_${PROJECT_VERSION}_windows_386.zip ./sealdice_core_${PROJECT_VERSION}_windows_i386.zip
-          zip -r ./sealdice_core_all_platform_${PROJECT_VERSION}.zip ./
+          mv ./sealdice-core_${PROJECT_VERSION}_windows_386.zip ./sealdice-core_${PROJECT_VERSION}_windows_i386.zip
+          zip -r ./sealdice-core_all_platform_${PROJECT_VERSION}.zip ./
       - name: Update Prerelease
         uses: andelf/nightly-release@main
         env:
