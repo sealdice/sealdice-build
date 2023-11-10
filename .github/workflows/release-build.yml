@@ -6,8 +6,8 @@ env:
   ANDROID_NDK_VERSION: r25c
   COMMIT_ID: "${{ github.sha }}"
   NO_BUILD_PROMPT: "no new commits, no need to build."
-  PROJECT_VERSION: "1.4.0"
-  PROJECT_VERSION_DISPLAY: "v1.4.0 v20231010"
+  PROJECT_VERSION: "1.4.1"
+  PROJECT_VERSION_DISPLAY: "v1.4.1 v20231110"
 
 jobs:
   commit-num-check:
@@ -36,8 +36,8 @@ jobs:
         run: |
           cd sealdice-core
           # echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION=1.4.0" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION_DISPLAY=v1.4.0 v20231010" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION=1.4.1" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION_DISPLAY=v1.4.1 v20231110" >> "$GITHUB_OUTPUT";
 
       - name: Warning
         run: if [ $(git log --oneline --since '24 hours ago' | wc -l) <= 0 ]; then echo $NO_BUILD_PROMPT; fi
@@ -673,7 +673,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v1.4.0
+          tag_name: v1.4.1
           name: ${{ env.PROJECT_VERSION_DISPLAY }}
           prerelease: false
           body: '[改动日志](https://sealdice.com/changelog)'
