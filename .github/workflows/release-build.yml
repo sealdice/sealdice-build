@@ -6,8 +6,8 @@ env:
   ANDROID_NDK_VERSION: r25c
   COMMIT_ID: "${{ github.sha }}"
   NO_BUILD_PROMPT: "no new commits, no need to build."
-  PROJECT_VERSION: "1.4.1"
-  PROJECT_VERSION_DISPLAY: "v1.4.1 v20231110"
+  PROJECT_VERSION: "1.4.2"
+  PROJECT_VERSION_DISPLAY: "v1.4.2 v20231210"
 
 jobs:
   commit-num-check:
@@ -36,8 +36,8 @@ jobs:
         run: |
           cd sealdice-core
           # echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION=1.4.1" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION_DISPLAY=v1.4.1 v20231110" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION=1.4.2" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION_DISPLAY=v1.4.2 v20231210" >> "$GITHUB_OUTPUT";
 
       - name: Warning
         run: if [ $(git log --oneline --since '24 hours ago' | wc -l) <= 0 ]; then echo $NO_BUILD_PROMPT; fi
@@ -107,7 +107,7 @@ jobs:
         uses: actions/setup-go@v3
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Build Binary
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         working-directory: ./go-cqhttp
@@ -154,7 +154,7 @@ jobs:
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         uses: actions/setup-go@v3
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Setup Android NDK
         id: setup-ndk
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
@@ -275,7 +275,7 @@ jobs:
         uses: actions/setup-go@v3
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Install Dependencies
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
@@ -361,7 +361,7 @@ jobs:
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/setup-go@v3
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Install dependencies
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
@@ -428,7 +428,7 @@ jobs:
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: '1.20'
       - name: Install dependencies
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
@@ -673,7 +673,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v1.4.1
+          tag_name: v1.4.2
           name: ${{ env.PROJECT_VERSION_DISPLAY }}
           prerelease: false
           body: '[改动日志](https://sealdice.com/changelog)'
