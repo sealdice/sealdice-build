@@ -250,14 +250,17 @@ jobs:
             goarch: arm64
       fail-fast: true
     steps:
-      - name: Cache dist get
-        id: cache-core-dist
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
-        with:
-          path: ./sealdice-core/output
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
+      # - name: Cache dist get
+      #   id: cache-core-dist
+      #   uses: actions/cache@v3
+      #   env:
+      #     cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
+      #   with:
+      #     path: ./sealdice-core/output
+      #     key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
+
+      - name: Apt-get Update
+        run: sudo apt-get update
 
       - name: Code
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
