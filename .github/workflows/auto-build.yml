@@ -5,7 +5,7 @@ on:
     - cron: '0 12 * * *'
   push:
     branches:
-      - dev
+      - next
   workflow_dispatch:
 
 env:
@@ -64,6 +64,8 @@ jobs:
             goarch: '386'
       fail-fast: true
     steps:
+      - name: Apt-get Update
+        run: sudo apt-get update
       - name: Code
         uses: actions/checkout@v3
         with:
@@ -227,6 +229,8 @@ jobs:
             goarch: arm64
       fail-fast: true
     steps:
+      - name: Apt-get Update
+        run: sudo apt-get update
       - name: Code
         uses: actions/checkout@v3
         with:
@@ -613,8 +617,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: pre-release
-          name: 'Latest Dev Build $$'
+          tag_name: pre-release-next
+          name: 'Latest Dev Build $$ (next minor)'
           prerelease: true
           body: '> ⚠️注意️️：这是自动构建的预发布版本，非正式版本！'
           files: |
