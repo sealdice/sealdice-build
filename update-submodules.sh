@@ -8,7 +8,7 @@ cd sealdice-core
 git config pull.rebase false
 git fetch origin dev
 git checkout dev
-git reset --hard
+git reset origin/dev --hard
 cd ..
 
 git commit -am "chore: bump submodules"
