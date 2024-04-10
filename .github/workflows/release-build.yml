@@ -6,8 +6,6 @@ env:
   ANDROID_NDK_VERSION: r25c
   COMMIT_ID: "${{ github.sha }}"
   NO_BUILD_PROMPT: "no new commits, no need to build."
-  PROJECT_VERSION: "1.4.4"
-  PROJECT_VERSION_DISPLAY: "v1.4.4 v20240310"
 
 jobs:
   commit-num-check:
@@ -28,16 +26,23 @@ jobs:
         run: |
           echo "UI_CID=`cd sealdice-ui && git rev-parse HEAD`" >> $GITHUB_OUTPUT;
           echo "CORE_CID=`cd sealdice-core && git rev-parse HEAD`" >> $GITHUB_OUTPUT;
-          echo "GOCQ_CID=`cd go-cqhttp && git rev-parse HEAD`" >> $GITHUB_OUTPUT;
-          echo "ANDROID_VERSION=`cd sealdice-android && git describe --tags --abbrev=0`" >> $GITHUB_OUTPUT;
+          # echo "ANDROID_VERSION=`cd sealdice-android && git describe --tags --abbrev=0`" >> $GITHUB_OUTPUT;
+          echo "ANDROID_VERSION=v0.6.1" >> $GITHUB_OUTPUT;
 
       - name: Get Version
         id: get-version
         run: |
           cd sealdice-core
           # echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION=1.4.4" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION_DISPLAY=v1.4.4 v20240310" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION=1.4.5" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION_DISPLAY=v1.4.5 v20240410" >> "$GITHUB_OUTPUT";
+
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
 
       - name: Warning
         run: if [ $(git log --oneline --since '24 hours ago' | wc -l) <= 0 ]; then echo $NO_BUILD_PROMPT; fi
@@ -45,10 +50,10 @@ jobs:
       commit-count: ${{ steps.get-commits.outputs.NEW_COMMIT_COUNT }}
       CORE_CID: ${{ steps.get-commit-ids.outputs.CORE_CID }}
       UI_CID: ${{ steps.get-commit-ids.outputs.UI_CID }}
-      GOCQ_CID: ${{ steps.get-commit-ids.outputs.GOCQ_CID }}
       ANDROID_VERSION: ${{ steps.get-commit-ids.outputs.ANDROID_VERSION }}
       PROJECT_VERSION: ${{ steps.get-version.outputs.PROJECT_VERSION }}
       PROJECT_VERSION_DISPLAY: ${{ steps.get-version.outputs.PROJECT_VERSION_DISPLAY }}
+      CUR_TIME: ${{ steps.currentTime.outputs.time }}
 
   resources-download:
     name: Download Related Resources
@@ -61,22 +66,42 @@ jobs:
         with:
           submodules: true
       - name: Upload Documents
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: documents
           path: ./sealdice-builtins/data
 
-  gocqhttp-build:
-    name: Build Gocqhttp
-    runs-on: ubuntu-20.04
+  lagrange-download:
+    name: Download Lagrange
+    runs-on: ubuntu-latest
     needs: commit-num-check
     if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
-    env:
-      GOCQ_CID: ${{needs.commit-num-check.outputs.GOCQ_CID}}
+    steps:
+      - name: Download
+        run: |
+          mkdir lag
+          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_linux-arm64_7.0.zip?v=10 > lag/Lagrange.OneBot.linux-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_linux-x64_7.0.zip?v=10 > lag/Lagrange.OneBot.linux-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_win-x64_7.0.zip?v=10 > lag/Lagrange.OneBot.windows-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_win-x86_7.0.zip?v=10 > lag/Lagrange.OneBot.windows-386.zip
+          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_osx-arm64_7.0.zip?v=10 > lag/Lagrange.OneBot.darwin-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_osx-x64_7.0.zip?v=10 > lag/Lagrange.OneBot.darwin-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_linux-musl-arm64_7.0.zip?v=10 > lag/Lagrange.OneBot.android-arm64.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: lagrange
+          path: ./lag
+
+  lagrange-setup:
+    name: Download Lagrange
+    runs-on: ubuntu-latest
+    needs: lagrange-download
     strategy:
       matrix:
         # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
-        goos: [ linux, windows, darwin ]
+        goos: [ linux, windows, darwin, android ]
         goarch: [ '386', amd64, arm64 ]
         exclude:
           - goos: linux
@@ -85,100 +110,29 @@ jobs:
             goarch: arm64
           - goos: darwin
             goarch: '386'
-      fail-fast: true
+          - goos: android
+            goarch: amd64
+          - goos: android
+            goarch: '386'
     steps:
-      - name: Cache dist get
-        id: cache-gocq-dist
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-gocq-${{ matrix.goos }}-${{ matrix.goarch }}-dist
+      - name: Get Lagrange
+        uses: actions/download-artifact@v4
         with:
-          path: ./go-cqhttp/output
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.GOCQ_CID }}
+          name: lagrange
+          path: ./lagrange
 
-      - name: Code
-        if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 0
-
-      - name: Install Go
-        uses: actions/setup-go@v3
-        if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        with:
-          go-version: '1.20'
-      - name: Build Binary
-        if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        working-directory: ./go-cqhttp
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLE: 0
+      - name: Extract
         run: |
-          if [ $GOOS = "windows" ]; then export BINARY_SUFFIX=".exe"; fi
-          export BINARY_NAME="go-cqhttp$BINARY_SUFFIX"
-          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID::7}-sealdicefork"
-          go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
-      - name: Upload Gocqhttp
-        uses: actions/upload-artifact@v3
-        with:
-          name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: ./go-cqhttp/output
+          mkdir extract
+          ls ./lagrange/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          file ./lagrange/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          unzip ./lagrange/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./extract/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}
 
-  gocqhttp-android-build:
-    name: Build Gocqhttp (android, arm64)
-    runs-on: ubuntu-20.04
-    needs: commit-num-check
-    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
-    env:
-      GOCQ_CID: ${{needs.commit-num-check.outputs.GOCQ_CID}}
-    steps:
-      - name: Cache dist get
-        id: cache-gocq-dist
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-gocqa-dist
+      - name: Upload
+        uses: actions/upload-artifact@v4
         with:
-          path: ./go-cqhttp/output
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.GOCQ_CID }}
-
-      - name: Code
-        if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        uses: actions/checkout@v3
-        with:
-          submodules: true
-          fetch-depth: 0
-
-      - name: Install Go
-        if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.20'
-      - name: Setup Android NDK
-        id: setup-ndk
-        if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          link-to-sdk: true
-          local-cache: false
-      - name: Build Binary
-        if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        working-directory: ./go-cqhttp
-        env:
-          GOOS: android
-          GOARCH: arm64
-          CGO_ENABLE: 0
-          CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
-        run: |
-          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${COMMIT_ID::7}-sealdicefork"
-          go build -o "output/go-cqhttp" -trimpath -ldflags "$LD_FLAGS" .
-      - name: Upload Gocqhttp
-        uses: actions/upload-artifact@v3
-        with:
-          name: go-cqhttp_android_arm64
-          path: ./go-cqhttp/output
+          name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./extract/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}
 
   ui-build:
     name: Build UI
@@ -224,7 +178,7 @@ jobs:
         run: npm run build
 
       - name: Upload UI
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-ui/dist
@@ -236,6 +190,7 @@ jobs:
       - commit-num-check
       - ui-build
     env:
+      CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
     strategy:
@@ -268,6 +223,9 @@ jobs:
         with:
           submodules: true
 
+      - name: fix
+        run: awk 'NR==1216{print "        pa.GoCqhttpState = StateCodeInit"}1' sealdice-core/dice/platform_adapter_gocq.go > temp && mv temp sealdice-core/dice/platform_adapter_gocq.go
+
       - name: Install Cross-compiler for Windows
         if: matrix.goos == 'windows' && steps.cache-core-dist.outputs.cache-hit != 'true'
         run: sudo apt-get -y install mingw-w64
@@ -287,7 +245,7 @@ jobs:
           go get .
       - name: Get UI Resources
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
@@ -322,9 +280,9 @@ jobs:
           CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }} # 为了规避glibc兼容问题，linux上不使用cgo
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
         working-directory: ./sealdice-core
-        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w" .
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240410 -X sealdice-core/dice.APP_CHANNEL=stable" .
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./sealdice-core/output
@@ -338,6 +296,7 @@ jobs:
     env:
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
+      CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
     strategy:
       matrix:
         # target: darwin/amd64 darwin/arm64
@@ -345,20 +304,23 @@ jobs:
         goarch: [ amd64, arm64 ]
       fail-fast: true
     steps:
-      - name: Cache dist get
-        id: cache-core-dist
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
-        with:
-          path: ./sealdice-core/output
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
+      # - name: Cache dist get
+      #   id: cache-core-dist
+      #   uses: actions/cache@v3
+      #   env:
+      #     cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
+      #   with:
+      #     path: ./sealdice-core/output
+      #     key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
 
       - name: Code
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/checkout@v3
         with:
           submodules: true
+
+      - name: fix
+        run: awk 'NR==1216{print "        pa.GoCqhttpState = StateCodeInit"}1' sealdice-core/dice/platform_adapter_gocq.go > temp && mv temp sealdice-core/dice/platform_adapter_gocq.go
 
       - name: Install Go
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
@@ -373,7 +335,7 @@ jobs:
           go get .
       - name: Get UI Resources
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
@@ -386,10 +348,10 @@ jobs:
           CGO_ENABLED: 1
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240410 -X sealdice-core/dice.APP_CHANNEL=stable" .
 
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./sealdice-core/output
@@ -403,21 +365,25 @@ jobs:
     env:
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
+      CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
     steps:
-      - name: Cache dist get
-        id: cache-core-dist
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
-        with:
-          path: ./sealdice-core/output
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
+      # - name: Cache dist get
+      #   id: cache-core-dist
+      #   uses: actions/cache@v3
+      #   env:
+      #     cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
+      #   with:
+      #     path: ./sealdice-core/output
+      #     key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
 
       - name: Code
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/checkout@v3
         with:
           submodules: true
+
+      - name: fix
+        run: awk 'NR==1216{print "        pa.GoCqhttpState = StateCodeInit"}1' sealdice-core/dice/platform_adapter_gocq.go > temp && mv temp sealdice-core/dice/platform_adapter_gocq.go
 
       - name: Setup Android NDK
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
@@ -440,7 +406,7 @@ jobs:
           go get .
       - name: Get UI Resources
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
@@ -453,9 +419,9 @@ jobs:
           CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240410 -X sealdice-core/dice.APP_CHANNEL=stable" .
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_android_arm64
           path: ./sealdice-core/output
@@ -467,7 +433,7 @@ jobs:
       - commit-num-check
       - core-android-build
       - resources-download
-      - gocqhttp-android-build
+      - lagrange-setup
     env:
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
       ANDROID_VERSION: ${{needs.commit-num-check.outputs.ANDROID_VERSION}}
@@ -477,20 +443,26 @@ jobs:
         with:
           submodules: true
       - name: Get Core-android
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_android_arm64
           path: ./sealdice-android/app/src/main/assets/sealdice
       - name: Get Documents
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: documents
           path: ./sealdice-android/app/src/main/assets/sealdice/data
-      - name: Get Gocqhttp
-        uses: actions/download-artifact@v3
+
+      - name: Get App-Runner
+        run: |
+          curl https://d1.sealdice.com/lagrange/app-runner-std-arm64.tar.gz > ./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
+
+      - name: Get Lagrange
+        uses: actions/download-artifact@v4
         with:
-          name: go-cqhttp_android_arm64
-          path: ./sealdice-android/app/src/main/assets/sealdice/go-cqhttp/
+          name: lagrange.android-arm64
+          path: ./sealdice-android/app/src/main/assets/sealdice/lagrange/
+
       - name: Setup Java
         uses: actions/setup-java@v3
         with:
@@ -526,7 +498,7 @@ jobs:
           keyPassword: ${{ secrets.KEY_PASSWORD }}
         env:
           # override default build-tools version (29.0.3) -- optional
-          BUILD_TOOLS_VERSION: "30.0.3"
+          BUILD_TOOLS_VERSION: "34.0.0"
 
       - name: Rename Apk
         working-directory: ./sealdice-android
@@ -534,7 +506,7 @@ jobs:
           mv ./app/build/outputs/apk/release/app-release-unsigned-signed.apk ./app/build/outputs/apk/release/sealdice_android_${{ env.PROJECT_VERSION }}_arm64.apk
 
       - name: Upload Apk
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_android_arm64
           path: ./sealdice-android/app/build/outputs/apk/release/sealdice_android_${{ env.PROJECT_VERSION }}_arm64.apk
@@ -543,8 +515,9 @@ jobs:
         env:
           GOARCH: arm64
         run: |
-          cp ./sealdice-android/app/build/outputs/apk/release/sealdice_android_${{ env.PROJECT_VERSION }}_arm64.apk ./sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.apk
-          echo "DIST=sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.apk" >> $GITHUB_ENV;
+          cp ./sealdice-android/app/build/outputs/apk/release/sealdice_android_${{ env.PROJECT_VERSION }}_arm64.apk ./sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.APK
+          echo "DIST=sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.APK" >> $GITHUB_ENV;
+
       - name: Upload APK to dist
         uses: actions/upload-artifact@v3
         with:
@@ -556,10 +529,10 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - resources-download
-      - gocqhttp-build
       - core-build
       - core-darwin-build
       - commit-num-check
+      - lagrange-setup
     env:
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
     strategy:
@@ -576,22 +549,25 @@ jobs:
             goarch: '386'
     steps:
       - name: Get Documents
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: documents
           path: ./data
-      - name: Get Gocqhttp
-        uses: actions/download-artifact@v3
+
+      - name: Get Lagrange
+        uses: actions/download-artifact@v4
         with:
-          name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: ./go-cqhttp/
+          name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./lagrange/
+
       - name: Get Core
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
+
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
@@ -618,7 +594,7 @@ jobs:
             goarch: '386'
     steps:
       - name: Get Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./temp/
@@ -676,7 +652,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v1.4.4
+          tag_name: v${{ env.PROJECT_VERSION }}
           name: ${{ env.PROJECT_VERSION_DISPLAY }}
           prerelease: true
           body: '[改动日志](https://sealdice.com/changelog)'
@@ -690,7 +666,7 @@ jobs:
     needs:
       - prerelease
     steps:
-      - uses: geekyeggo/delete-artifact@v2
+      - uses: geekyeggo/delete-artifact@v4
         with:
           name: |
             documents
