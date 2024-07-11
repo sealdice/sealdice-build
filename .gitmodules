@@ -1,7 +1,7 @@
 [submodule "sealdice-core"]
 	path = sealdice-core
 	url = https://github.com/sealdice/sealdice-core
-	branch = master
+	branch = main
 [submodule "sealdice-ui"]
 	path = sealdice-ui
 	url = https://github.com/sealdice/sealdice-ui
