@@ -1,8 +1,5 @@
 name: Auto Build
 on:
-  # schedule:
-  #   # 每天 UTC 12:00（即北京时间 20:00）自动执行
-  #   - cron: '0 12 * * *'
   push:
     branches:
       - beta
