@@ -34,8 +34,8 @@ jobs:
         run: |
           cd sealdice-core
           # echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION=1.4.5" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION_DISPLAY=v1.4.5 v20240410" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION=1.4.6" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION_DISPLAY=v1.4.6 v20240810" >> "$GITHUB_OUTPUT";
 
       - name: Get current time
         uses: Kaven-Universe/github-action-current-date-time@v1
@@ -54,6 +54,7 @@ jobs:
       PROJECT_VERSION: ${{ steps.get-version.outputs.PROJECT_VERSION }}
       PROJECT_VERSION_DISPLAY: ${{ steps.get-version.outputs.PROJECT_VERSION_DISPLAY }}
       CUR_TIME: ${{ steps.currentTime.outputs.time }}
+      SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
 
   resources-download:
     name: Download Related Resources
@@ -80,13 +81,13 @@ jobs:
       - name: Download
         run: |
           mkdir lag
-          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_linux-arm64_7.0.zip?v=10 > lag/Lagrange.OneBot.linux-arm64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_linux-x64_7.0.zip?v=10 > lag/Lagrange.OneBot.linux-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_win-x64_7.0.zip?v=10 > lag/Lagrange.OneBot.windows-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_win-x86_7.0.zip?v=10 > lag/Lagrange.OneBot.windows-386.zip
-          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_osx-arm64_7.0.zip?v=10 > lag/Lagrange.OneBot.darwin-arm64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_osx-x64_7.0.zip?v=10 > lag/Lagrange.OneBot.darwin-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.3/Lagrange.OneBot_linux-musl-arm64_7.0.zip?v=10 > lag/Lagrange.OneBot.android-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-arm64_7.0.zip > lag/Lagrange.OneBot.linux-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-x64_7.0.zip > lag/Lagrange.OneBot.linux-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_win-x64_7.0.zip > lag/Lagrange.OneBot.windows-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_win-x86_7.0.zip > lag/Lagrange.OneBot.windows-386.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_osx-arm64_7.0.zip > lag/Lagrange.OneBot.darwin-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_osx-x64_7.0.zip > lag/Lagrange.OneBot.darwin-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-musl-arm64_7.0.zip > lag/Lagrange.OneBot.android-arm64.zip
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -193,6 +194,7 @@ jobs:
       CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
+      SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
     strategy:
       matrix:
         # target: linux/amd64, linux/arm64, windows/386, windows/amd64
@@ -280,7 +282,16 @@ jobs:
           CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }} # 为了规避glibc兼容问题，linux上不使用cgo
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
         working-directory: ./sealdice-core
-        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240410 -X sealdice-core/dice.APP_CHANNEL=stable" .
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240810 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+
+      - name: Run UPX
+        uses: crazy-max/ghaction-upx@v3
+        if: matrix.musl == ''
+        with:
+          version: latest
+          files: ./sealdice-core/output/${{ env.BINARY_NAME }}
+          args: -9 -fq
+
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
@@ -297,6 +308,7 @@ jobs:
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
       CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
+      SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
     strategy:
       matrix:
         # target: darwin/amd64 darwin/arm64
@@ -348,7 +360,7 @@ jobs:
           CGO_ENABLED: 1
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240410 -X sealdice-core/dice.APP_CHANNEL=stable" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240810 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
 
       - name: Upload Core
         uses: actions/upload-artifact@v4
@@ -366,6 +378,7 @@ jobs:
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
       CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
+      SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
     steps:
       # - name: Cache dist get
       #   id: cache-core-dist
@@ -419,7 +432,7 @@ jobs:
           CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240410 -X sealdice-core/dice.APP_CHANNEL=stable" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240810 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
