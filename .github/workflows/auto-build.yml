@@ -431,7 +431,7 @@ jobs:
           SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
         working-directory: ./sealdice-core
         run: |
-          go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-beta -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=beta  -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+          go build -tags "android" -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-beta -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=beta  -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
