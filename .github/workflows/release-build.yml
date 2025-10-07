@@ -6,6 +6,7 @@ env:
   ANDROID_NDK_VERSION: r25c
   COMMIT_ID: "${{ github.sha }}"
   NO_BUILD_PROMPT: "no new commits, no need to build."
+  NT_SIGN_URL: ${{ secrets.NT_SIGN_URL }}
 
 jobs:
   commit-num-check:
@@ -34,8 +35,8 @@ jobs:
         run: |
           cd sealdice-core
           # echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION=1.4.6" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION_DISPLAY=v1.4.6 v20240810" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION=1.5.0" >> "$GITHUB_OUTPUT";
+          echo "PROJECT_VERSION_DISPLAY=v1.5.0 v20251007" >> "$GITHUB_OUTPUT";
 
       - name: Get current time
         uses: Kaven-Universe/github-action-current-date-time@v1
@@ -81,19 +82,43 @@ jobs:
       - name: Download
         run: |
           mkdir lag
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-arm64_7.0.zip > lag/Lagrange.OneBot.linux-arm64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-x64_7.0.zip > lag/Lagrange.OneBot.linux-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_win-x64_7.0.zip > lag/Lagrange.OneBot.windows-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_win-x86_7.0.zip > lag/Lagrange.OneBot.windows-386.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_osx-arm64_7.0.zip > lag/Lagrange.OneBot.darwin-arm64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_osx-x64_7.0.zip > lag/Lagrange.OneBot.darwin-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-musl-arm64_7.0.zip > lag/Lagrange.OneBot.android-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_linux-arm64_8.0.zip > lag/Lagrange.OneBot.linux-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_linux-x64_8.0.zip > lag/Lagrange.OneBot.linux-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_win-x64_8.0.zip > lag/Lagrange.OneBot.windows-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_win-x86_8.0.zip > lag/Lagrange.OneBot.windows-386.zip
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_osx-arm64_8.0.zip > lag/Lagrange.OneBot.darwin-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_osx-x64_8.0.zip > lag/Lagrange.OneBot.darwin-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_linux-musl-arm64_8.0.zip > lag/Lagrange.OneBot.android-arm64.zip
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: lagrange
           path: ./lag
+
+  lagrange-gocq-download:
+    name: Download Lagrange-Gocq
+    runs-on: ubuntu-latest
+    needs: commit-num-check
+    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
+    steps:
+      - name: Download
+        run: |
+          mkdir lag
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_android_arm64.zip > lag/lagrange-gocq.android-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_linux_arm64.zip > lag/lagrange-gocq.linux-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_linux_amd64.zip > lag/lagrange-gocq.linux-amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_windows_amd64.zip > lag/lagrange-gocq.windows-amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_windows_386.zip > lag/lagrange-gocq.windows-386.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_darwin_arm64.zip > lag/lagrange-gocq.darwin-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_darwin_amd64.zip > lag/lagrange-gocq.darwin-amd64.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: lagrange-gocq
+          path: ./lag
+
 
   lagrange-setup:
     name: Download Lagrange
@@ -134,6 +159,47 @@ jobs:
         with:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./extract/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}
+  lagrange-gocq-setup:
+    name: Download Lagrange-Gocq
+    runs-on: ubuntu-latest
+    needs: lagrange-gocq-download
+    strategy:
+      matrix:
+        goos: [ linux, windows, darwin, android ]
+        goarch: [ '386', amd64, arm64 ]
+        exclude:
+          - goos: linux
+            goarch: '386'
+          - goos: windows
+            goarch: arm64
+          - goos: windows
+            goarch: '386'
+          - goos: darwin
+            goarch: '386'
+          - goos: android
+            goarch: amd64
+          - goos: android
+            goarch: '386'
+    steps:
+      - name: Get Lagrange-Gocq
+        uses: actions/download-artifact@v4
+        with:
+          name: lagrange-gocq
+          path: ./lagrange
+
+      - name: Extract
+        run: |
+          mkdir extract
+          ls ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          file ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          unzip ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./extract/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./extract/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+
 
   ui-build:
     name: Build UI
@@ -186,7 +252,7 @@ jobs:
 
   core-build:
     name: Build Core
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs:
       - commit-num-check
       - ui-build
@@ -199,7 +265,7 @@ jobs:
       matrix:
         # target: linux/amd64, linux/arm64, windows/386, windows/amd64
         goos: [ linux, windows ]
-        goarch: [ '386', amd64, arm64 ]
+        goarch: [ amd64, arm64 ]
         exclude:
           - goos: linux
             goarch: '386'
@@ -238,7 +304,32 @@ jobs:
         uses: actions/setup-go@v3
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         with:
-          go-version: '1.20'
+          go-version: '1.24'
+      - name: Apply Go Patch
+        if: steps.cache-core-dist.outputs.cache-hit != 'true'
+        run: |
+          set -eo pipefail
+          GO_VERSION=$(go env GOVERSION)
+          GO_VERSION=${GO_VERSION#go}
+          IFS='.' read -r MAJOR MINOR _ <<< "$GO_VERSION"
+          MAJOR=${MAJOR%%[^0-9]*}
+          MINOR=${MINOR%%[^0-9]*}
+          if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
+            echo "Unable to determine Go minor version from ${GO_VERSION}, skipping patch."
+            exit 0
+          fi
+          PATCH_FILE="${GITHUB_WORKSPACE}/.github/patch_go/unified-${MAJOR}-${MINOR}-patch.diff"
+          if [[ ! -f "$PATCH_FILE" ]]; then
+            echo "No Go patch found for unified-${MAJOR}-${MINOR}, skipping."
+            exit 0
+          fi
+          GOROOT=$(go env GOROOT)
+          echo "Applying Go patch ${PATCH_FILE} to ${GOROOT}"
+          if patch --directory="$GOROOT" --dry-run -p1 < "$PATCH_FILE" >/dev/null 2>&1; then
+            patch --directory="$GOROOT" -p1 < "$PATCH_FILE"
+          else
+            echo "Patch appears already applied or incompatible, skipping."
+          fi
       - name: Install Dependencies
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
@@ -282,7 +373,7 @@ jobs:
           CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }} # 为了规避glibc兼容问题，linux上不使用cgo
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
         working-directory: ./sealdice-core
-        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240810 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20251007 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
 
       - name: Run UPX
         uses: crazy-max/ghaction-upx@v3
@@ -338,7 +429,32 @@ jobs:
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/setup-go@v3
         with:
-          go-version: '1.20'
+          go-version: '1.24'
+      - name: Apply Go Patch
+        if: steps.cache-core-dist.outputs.cache-hit != 'true'
+        run: |
+          set -eo pipefail
+          GO_VERSION=$(go env GOVERSION)
+          GO_VERSION=${GO_VERSION#go}
+          IFS='.' read -r MAJOR MINOR _ <<< "$GO_VERSION"
+          MAJOR=${MAJOR%%[^0-9]*}
+          MINOR=${MINOR%%[^0-9]*}
+          if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
+            echo "Unable to determine Go minor version from ${GO_VERSION}, skipping patch."
+            exit 0
+          fi
+          PATCH_FILE="${GITHUB_WORKSPACE}/.github/patch_go/unified-${MAJOR}-${MINOR}-patch.diff"
+          if [[ ! -f "$PATCH_FILE" ]]; then
+            echo "No Go patch found for unified-${MAJOR}-${MINOR}, skipping."
+            exit 0
+          fi
+          GOROOT=$(go env GOROOT)
+          echo "Applying Go patch ${PATCH_FILE} to ${GOROOT}"
+          if patch --directory="$GOROOT" --dry-run -p1 < "$PATCH_FILE" >/dev/null 2>&1; then
+            patch --directory="$GOROOT" -p1 < "$PATCH_FILE"
+          else
+            echo "Patch appears already applied or incompatible, skipping."
+          fi
       - name: Install dependencies
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
@@ -360,7 +476,7 @@ jobs:
           CGO_ENABLED: 1
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240810 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20251007 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
 
       - name: Upload Core
         uses: actions/upload-artifact@v4
@@ -370,7 +486,7 @@ jobs:
 
   core-android-build:
     name: Build Core (android, arm64)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs:
       - commit-num-check
       - ui-build
@@ -395,9 +511,6 @@ jobs:
         with:
           submodules: true
 
-      - name: fix
-        run: awk 'NR==1216{print "        pa.GoCqhttpState = StateCodeInit"}1' sealdice-core/dice/platform_adapter_gocq.go > temp && mv temp sealdice-core/dice/platform_adapter_gocq.go
-
       - name: Setup Android NDK
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         id: setup-ndk
@@ -410,7 +523,32 @@ jobs:
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/setup-go@v3
         with:
-          go-version: '1.20'
+          go-version: '1.24'
+      - name: Apply Go Patch
+        if: steps.cache-core-dist.outputs.cache-hit != 'true'
+        run: |
+          set -eo pipefail
+          GO_VERSION=$(go env GOVERSION)
+          GO_VERSION=${GO_VERSION#go}
+          IFS='.' read -r MAJOR MINOR _ <<< "$GO_VERSION"
+          MAJOR=${MAJOR%%[^0-9]*}
+          MINOR=${MINOR%%[^0-9]*}
+          if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
+            echo "Unable to determine Go minor version from ${GO_VERSION}, skipping patch."
+            exit 0
+          fi
+          PATCH_FILE="${GITHUB_WORKSPACE}/.github/patch_go/unified-${MAJOR}-${MINOR}-patch.diff"
+          if [[ ! -f "$PATCH_FILE" ]]; then
+            echo "No Go patch found for unified-${MAJOR}-${MINOR}, skipping."
+            exit 0
+          fi
+          GOROOT=$(go env GOROOT)
+          echo "Applying Go patch ${PATCH_FILE} to ${GOROOT}"
+          if patch --directory="$GOROOT" --dry-run -p1 < "$PATCH_FILE" >/dev/null 2>&1; then
+            patch --directory="$GOROOT" -p1 < "$PATCH_FILE"
+          else
+            echo "Patch appears already applied or incompatible, skipping."
+          fi
       - name: Install dependencies
         if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
@@ -432,7 +570,7 @@ jobs:
           CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20240810 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20251007 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
@@ -441,7 +579,7 @@ jobs:
 
   android-build:
     name: Build Android Apk
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs:
       - commit-num-check
       - core-android-build
@@ -524,19 +662,6 @@ jobs:
           name: sealdice_${{ env.PROJECT_VERSION }}_android_arm64
           path: ./sealdice-android/app/build/outputs/apk/release/sealdice_android_${{ env.PROJECT_VERSION }}_arm64.apk
 
-      - name: prepare
-        env:
-          GOARCH: arm64
-        run: |
-          cp ./sealdice-android/app/build/outputs/apk/release/sealdice_android_${{ env.PROJECT_VERSION }}_arm64.apk ./sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.APK
-          echo "DIST=sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION}_${GOARCH}.APK" >> $GITHUB_ENV;
-
-      - name: Upload APK to dist
-        uses: actions/upload-artifact@v3
-        with:
-          name: sealdice-prerelease
-          path: ${{ env.DIST }}
-
   pc-pack:
     name: PC Pack
     runs-on: ubuntu-latest
@@ -546,13 +671,14 @@ jobs:
       - core-darwin-build
       - commit-num-check
       - lagrange-setup
+      - lagrange-gocq-setup
     env:
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
     strategy:
       matrix:
         # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
         goos: [ linux, windows, darwin ]
-        goarch: [ '386', amd64, arm64 ]
+        goarch: [ amd64, arm64 ]
         exclude:
           - goos: linux
             goarch: '386'
@@ -573,11 +699,21 @@ jobs:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./lagrange/
 
+      - name: Get Lagrange-Gocq
+        uses: actions/download-artifact@v4
+        with:
+          name: lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./lagrange/
+
       - name: Get Core
         uses: actions/download-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
+
+      - name: Set Execute Attribute
+        if: matrix.goos != 'windows'
+        run: chmod +x ./sealdice-core
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -590,14 +726,16 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - pc-pack
+      - android-build
       - commit-num-check
     env:
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
+      ANDROID_VERSION: ${{needs.commit-num-check.outputs.ANDROID_VERSION}}
     strategy:
       matrix:
         # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64, android/arm64
         goos: [ linux, windows, darwin ]
-        goarch: [ '386', amd64, arm64 ]
+        goarch: [ amd64, arm64 ]
         exclude:
           - goos: linux
             goarch: '386'
@@ -605,6 +743,9 @@ jobs:
             goarch: arm64
           - goos: darwin
             goarch: '386'
+        include:
+          - goos: android
+            goarch: arm64
     steps:
       - name: Get Files
         uses: actions/download-artifact@v4
@@ -631,10 +772,25 @@ jobs:
           zip -r ../sealdice-core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip .
           echo "DIST=sealdice-core_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
 
+      - name: Prepare Android Artifact
+        if: matrix.goos == 'android'
+        env:
+          GOARCH: ${{ matrix.goarch }}
+          PROJECT_VERSION: ${{ env.PROJECT_VERSION }}
+          ANDROID_VERSION: ${{ env.ANDROID_VERSION }}
+        run: |
+          SOURCE=$(find ./temp -name "sealdice_android_${PROJECT_VERSION}_${GOARCH}.apk" -print -quit)
+          if [ -z "$SOURCE" ]; then
+            echo "Android artifact sealdice_android_${PROJECT_VERSION}_${GOARCH}.apk not found under ./temp";
+            exit 1;
+          fi
+          mv "$SOURCE" "./sealdice-android_${ANDROID_VERSION}_${PROJECT_VERSION}_${GOARCH}.APK"
+          echo "DIST=sealdice-android_${ANDROID_VERSION}_${PROJECT_VERSION}_${GOARCH}.APK" >> $GITHUB_ENV;
+
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: sealdice-prerelease
+          name: sealdice-prerelease_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ${{ env.DIST }}
 
   prerelease:
@@ -651,14 +807,14 @@ jobs:
       contents: write
     steps:
       - name: Get Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: sealdice-prerelease
+          pattern: sealdice-prerelease_${{ env.PROJECT_VERSION }}_*
           path: ./dist/
+          merge-multiple: true
       - name: Pack All platform
         run: |
           cd ./dist
-          mv ./sealdice-core_${PROJECT_VERSION}_windows_386.zip ./sealdice-core_${PROJECT_VERSION}_windows_i386.zip
           zip -r ./sealdice-core_all_platform_${PROJECT_VERSION}.zip ./
       - name: Update Prerelease
         uses: andelf/nightly-release@main
@@ -683,7 +839,9 @@ jobs:
         with:
           name: |
             documents
-            go-cqhttp*
+            lagrange*
+            lagrange-gocq*
             sealdice-ui
             sealdice-core*
-            sealdice-prerelease
+            sealdice_*
+            sealdice-prerelease_*
