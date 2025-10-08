@@ -75,7 +75,7 @@ jobs:
           curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_win-x86_8.0.zip?v=2 > lag/Lagrange.OneBot.windows-386.zip
           curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_osx-arm64_8.0.zip?v=2 > lag/Lagrange.OneBot.darwin-arm64.zip
           curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_osx-x64_8.0.zip?v=2 > lag/Lagrange.OneBot.darwin-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_linux-musl-arm64_8.0.zip?v=2 > lag/Lagrange.OneBot.android-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.5/Lagrange.OneBot_linux-musl-arm64_8.0.zip?v=2 > lag/Lagrange.OneBot.android-arm64.zip
 
       - name: Upload
         uses: actions/upload-artifact@v4
