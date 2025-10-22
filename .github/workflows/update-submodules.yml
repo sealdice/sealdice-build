@@ -1,0 +1,67 @@
+name: Update submodules daily
+
+on:
+  schedule:
+    # run daily at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-submodules
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update submodules and commit bump
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # fetch all refs
+          git fetch --all || true
+
+          # init and update submodules (ensure folders exist)
+          git submodule init || true
+          git submodule update --recursive --remote || true
+
+          # For each submodule, detect its default branch (HEAD) and reset to that branch
+          git submodule foreach 'default_branch=$(git remote show origin | awk "/HEAD branch/ {print \$NF}" || echo master); git fetch origin --prune || true; git reset --hard origin/${default_branch} || true'
+
+          echo "Repository status (porcelain):"
+          git status --porcelain
+
+          # If there's any change (submodule pointers changed), commit and push
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            # Only commit if staged changes exist
+            if git diff --staged --quiet; then
+              echo "No staged changes to commit"
+            else
+              git commit -m "chore: bump submodules"
+
+              # Use token-authenticated URL for pushing
+              git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+
+              # determine current branch and push
+              BRANCH=$(git rev-parse --abbrev-ref HEAD)
+              git push origin HEAD:${BRANCH}
+            fi
+          else
+            echo "No changes detected, nothing to commit"
+          fi
