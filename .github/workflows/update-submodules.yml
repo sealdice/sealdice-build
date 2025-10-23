@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Set git user
         run: |
@@ -31,7 +31,7 @@ jobs:
 
       - name: Update submodules and commit bump
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           # fetch all refs
           git fetch --all || true
@@ -56,7 +56,7 @@ jobs:
               git commit -m "chore: bump submodules"
 
               # Use token-authenticated URL for pushing
-              git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+              git remote set-url origin https://x-access-token:${PAT_TOKEN}@github.com/${{ github.repository }}.git
 
               # determine current branch and push
               BRANCH=$(git rev-parse --abbrev-ref HEAD)
