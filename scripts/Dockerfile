@@ -15,7 +15,7 @@ COPY ./${TARGETARCH}/data ${SEAL_HOME}/buildin-data
 COPY --chmod=0755 ./${TARGETARCH}/sealdice-core  ${SEAL_HOME}/sealdice-core
 
 RUN echo "#!/bin/sh" > ${SEAL_HOME}/entrypoint.sh
-RUN echo "cp -r /buildin-data/* /data/" >> ${SEAL_HOME}/entrypoint.sh
+RUN echo "cp -r /buildin-data/* ./data/" >> ${SEAL_HOME}/entrypoint.sh
 RUN echo "/sealdice-core --container-mode" >> ${SEAL_HOME}/entrypoint.sh
 RUN chmod +x ${SEAL_HOME}/entrypoint.sh
 
