@@ -877,6 +877,71 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+  docker-push-full:
+    name: Docker Push (Full with Lagrange)
+    runs-on: ubuntu-latest
+    needs:
+      - pc-pack
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
+      - name: Set Env
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
+        run: |
+          echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+
+      - name: Get Amd64 Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION_C }}_linux_amd64
+          path: ./amd64/
+      - name: Get Arm64 Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION_C }}_linux_arm64
+          path: ./arm64/
+
+      - name: Chmod
+        run:
+          chmod +x ./amd64/sealdice-core && chmod +x ./arm64/sealdice-core
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/sealdice-full
+          tags: |
+            type=edge
+            type=sha,event=branch
+            type=ref,event=tag
+      - name: Docker Build
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./scripts/Dockerfile.full
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            AUTHOR=${{ github.repository_owner }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   clear-temp-artifact:
     name: Clear Temp Artifacts
     if: always()
@@ -892,6 +957,7 @@ jobs:
           name: |
             documents
             go-cqhttp*
+            lagrange*
             sealdice-ui
             sealdice-core*
             sealdice-prerelease*
