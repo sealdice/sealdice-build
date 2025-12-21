@@ -32,4 +32,4 @@ RUN echo '#!/bin/sh' > ${SEAL_HOME}/entrypoint.sh && \
 
 # 启动
 EXPOSE 3211
-ENTRYPOINT [ "/entrypoint.sh" ]
+ENTRYPOINT ["sh", "-c", "${SEAL_HOME}/entrypoint.sh"]
