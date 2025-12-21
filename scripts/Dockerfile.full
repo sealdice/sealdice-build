@@ -1,20 +1,31 @@
-FROM alpine:3.19.1
+FROM debian:12-slim
 
-# 指定默认时区
-RUN apk add --no-cache tzdata libstdc++ libgcc icu-libs
-ENV TZ Asia/Shanghai
+# 安装所需软件包
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        tzdata \
+        libicu72 \
+        libstdc++6 \
+    && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && dpkg-reconfigure -f noninteractive tzdata \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# 固定安装目录，为避免破坏兼容性，继承旧版使用 /
-ENV SEAL_HOME=
+# 环境变量也写上，双保险
+ENV TZ=Asia/Shanghai
+
+# 固定安装目录，与默认镜像有区别，需要注意
+ENV SEAL_HOME=/app
 
 # 移入对应文件
-VOLUME ["/backups", "/data"]
+VOLUME ["/app/backups", "/app/data"]
 ARG TARGETARCH
 COPY ./${TARGETARCH}/data ${SEAL_HOME}/buildin-data
 COPY --chmod=0755 ./${TARGETARCH}/sealdice-core ${SEAL_HOME}/sealdice-core
 COPY ./${TARGETARCH}/lagrange ${SEAL_HOME}/lagrange
 
 RUN echo '#!/bin/sh' > ${SEAL_HOME}/entrypoint.sh && \
+    echo 'mkdir -p ./data/' >> ${SEAL_HOME}/entrypoint.sh && \
+    echo 'ln -s /lagrange/ ./lagrange' >> ${SEAL_HOME}/entrypoint.sh && \
     echo 'cp -r /buildin-data/* ./data/' >> ${SEAL_HOME}/entrypoint.sh && \
     echo '/sealdice-core' >> ${SEAL_HOME}/entrypoint.sh && \
     chmod +x ${SEAL_HOME}/entrypoint.sh
