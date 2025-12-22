@@ -25,8 +25,8 @@ COPY ./${TARGETARCH}/lagrange ${SEAL_HOME}/lagrange
 
 RUN echo '#!/bin/sh' > ${SEAL_HOME}/entrypoint.sh && \
     echo 'mkdir -p ./data/' >> ${SEAL_HOME}/entrypoint.sh && \
-    echo 'ln -s /lagrange/ ./lagrange' >> ${SEAL_HOME}/entrypoint.sh && \
-    echo 'cp -r /buildin-data/* ./data/' >> ${SEAL_HOME}/entrypoint.sh && \
+    echo 'ln -s ${SEAL_HOME}/lagrange/ ./lagrange' >> ${SEAL_HOME}/entrypoint.sh && \
+    echo 'cp -r ${SEAL_HOME}/buildin-data/* ./data/' >> ${SEAL_HOME}/entrypoint.sh && \
     echo '/sealdice-core' >> ${SEAL_HOME}/entrypoint.sh && \
     chmod +x ${SEAL_HOME}/entrypoint.sh
 
