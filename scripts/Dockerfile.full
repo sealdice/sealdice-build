@@ -2,6 +2,7 @@ FROM debian:12-slim
 
 # 安装所需软件包
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
         tzdata \
         libicu72 \
         libstdc++6 \
