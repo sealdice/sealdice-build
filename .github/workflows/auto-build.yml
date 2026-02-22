@@ -863,7 +863,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/sealdice
           tags: |
             type=edge
-            type=sha,event=branch
+            type=raw,value={{date 'YYYYMMDD' tz='Asia/Shanghai'}}-{{sha}},event=branch
             type=ref,event=tag
       - name: Docker Build
         uses: docker/build-push-action@v3
@@ -928,7 +928,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/sealdice-full
           tags: |
             type=edge
-            type=sha,event=branch
+            type=raw,value={{date 'YYYYMMDD' tz='Asia/Shanghai'}}-{{sha}},event=branch
             type=ref,event=tag
       - name: Docker Build
         uses: docker/build-push-action@v3
