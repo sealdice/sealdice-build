@@ -1,0 +1,33 @@
+FROM debian:12-slim
+
+# 安装所需软件包
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tzdata \
+        libicu72 \
+        libstdc++6 \
+    && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && dpkg-reconfigure -f noninteractive tzdata \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 环境变量也写上，双保险
+ENV TZ=Asia/Shanghai
+
+# 移入对应文件（固定安装目录 /app，与默认镜像有区别）
+VOLUME ["/app/backups", "/app/data"]
+ARG TARGETARCH
+COPY ./${TARGETARCH}/data /app/buildin-data
+COPY --chmod=0755 ./${TARGETARCH}/sealdice-core /app/sealdice-core
+COPY ./${TARGETARCH}/lagrange /app/lagrange
+
+RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
+    echo 'mkdir -p ./data/' >> /app/entrypoint.sh && \
+    echo 'rm -f ./lagrange && ln -s /app/lagrange/ ./lagrange' >> /app/entrypoint.sh && \
+    echo 'cp -r /app/buildin-data/* ./data/' >> /app/entrypoint.sh && \
+    echo 'exec /app/sealdice-core' >> /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
+# 启动
+EXPOSE 3211
+ENTRYPOINT ["/app/entrypoint.sh"]
