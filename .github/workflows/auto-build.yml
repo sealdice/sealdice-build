@@ -285,7 +285,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.7"  # 1.25.8 不兼容 patch 暂时锁定版本
           cache-dependency-path: sealdice-core/go.sum
 
       # copy from https://github.com/MetaCubeX/mihomo/blob/dbb002a5ba2e0e79158fd6e3264ac44aedf0bf72/.github/workflows/build.yml#L157-L173
