@@ -20,7 +20,7 @@ ARG TARGETARCH
 COPY ./${TARGETARCH}/data /app/buildin-data
 COPY --chmod=0755 ./${TARGETARCH}/sealdice-core /app/sealdice-core
 COPY ./${TARGETARCH}/lagrange /app/lagrange
-COPY ./${TARGETARCH}/milky /app/milky
+COPY ./milky /app/milky
 
 RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
     echo 'mkdir -p ./data/' >> /app/entrypoint.sh && \
