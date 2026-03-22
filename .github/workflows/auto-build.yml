@@ -747,8 +747,8 @@ jobs:
           path: ./lagrange/
 
       - name: Get Milky
+        if: matrix.goos != 'darwin' || matrix.goarch != 'amd64'
         uses: actions/download-artifact@v4
-        if: matrix.goos != 'darwin' && matrix.goarch != 'amd64'
         with:
           name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./milky/
