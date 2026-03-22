@@ -208,18 +208,10 @@ jobs:
           mv ./milky/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}.exe ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}/lagrangeV2.exe
 
       - name: Upload
-        if: matrix.goos != 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
-
-      - name: Upload exe
-        if: matrix.goos == 'windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}.exe
 
   lagrange-gocq-setup:
     name: Download Lagrange-Gocq
@@ -747,17 +739,10 @@ jobs:
           path: ./lagrange/
 
       - name: Get Milky
-        if: matrix.goos != 'darwin' || matrix.goarch != 'amd64' || matrix.goos != 'windows'
+        if: matrix.goos != 'darwin' || matrix.goarch != 'amd64'
         uses: actions/download-artifact@v4
         with:
           name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ./milky/
-
-      - name: Get Milky exe
-        if: matrix.goos == 'windows'
-        uses: actions/download-artifact@v4
-        with:
-          name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}.exe
           path: ./milky/
 
       - name: Get Core
