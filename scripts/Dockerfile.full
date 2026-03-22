@@ -1,4 +1,4 @@
-FROM debian:12-slim
+FROM ubuntu:24.04
 
 # 安装所需软件包
 RUN apt-get update && apt-get install -y --no-install-recommends \
