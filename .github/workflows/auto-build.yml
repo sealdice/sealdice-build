@@ -588,6 +588,7 @@ jobs:
       - core-android-build
       - resources-download
       - lagrange-setup
+      - lagrangeV2-setup
     env:
       ANDROID_VERSION: ${{needs.commit-num-check.outputs.ANDROID_VERSION}}
     steps:
@@ -627,6 +628,12 @@ jobs:
         with:
           name: lagrange.android-arm64
           path: ./sealdice-android/app/src/main/assets/sealdice/lagrange/
+
+      - name: Get LagrangeV2
+        uses: actions/download-artifact@v4
+        with:
+          name: lagrangeV2.linux-arm64
+          path: ./sealdice-android/app/src/main/assets/sealdice/milky/
 
       - name: Get Gocq-lagr
         uses: actions/download-artifact@v4
