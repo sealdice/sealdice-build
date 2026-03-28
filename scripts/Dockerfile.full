@@ -27,7 +27,7 @@ RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
     echo 'rm -f ./lagrange && ln -s /app/lagrange/ ./lagrange' >> /app/entrypoint.sh && \
     echo 'rm -f ./milky && ln -s /app/milky/ ./milky' >> /app/entrypoint.sh && \
     echo 'cp -r /app/buildin-data/* ./data/' >> /app/entrypoint.sh && \
-    echo 'exec /app/sealdice-core' >> /app/entrypoint.sh && \
+    echo 'exec /app/sealdice-core "$@"' >> /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 
 # 启动
