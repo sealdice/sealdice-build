@@ -103,29 +103,6 @@ jobs:
           name: lagrangeV2
           path: ./milky
 
-  lagrange-gocq-download:
-    name: Download Lagrange-Gocq
-    runs-on: ubuntu-latest
-    needs: commit-num-check
-    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
-    steps:
-      - name: Download
-        run: |
-          mkdir lag
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_android_arm64.zip > lag/lagrange-gocq.android-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_linux_arm64.zip > lag/lagrange-gocq.linux-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_linux_amd64.zip > lag/lagrange-gocq.linux-amd64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_windows_amd64.zip > lag/lagrange-gocq.windows-amd64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_windows_386.zip > lag/lagrange-gocq.windows-386.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_darwin_arm64.zip > lag/lagrange-gocq.darwin-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_darwin_amd64.zip > lag/lagrange-gocq.darwin-amd64.zip
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: lagrange-gocq
-          path: ./lag
-
   lagrange-setup:
     name: Download Lagrange
     runs-on: ubuntu-latest
@@ -212,48 +189,6 @@ jobs:
         with:
           name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
-
-  lagrange-gocq-setup:
-    name: Download Lagrange-Gocq
-    runs-on: ubuntu-latest
-    needs: lagrange-gocq-download
-    strategy:
-      matrix:
-        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
-        goos: [ linux, windows, darwin, android ]
-        goarch: [ '386', amd64, arm64 ]
-        exclude:
-          - goos: linux
-            goarch: '386'
-          - goos: windows
-            goarch: arm64
-          - goos: windows
-            goarch: '386'
-          - goos: darwin
-            goarch: '386'
-          - goos: android
-            goarch: amd64
-          - goos: android
-            goarch: '386'
-    steps:
-      - name: Get Lagrange-Gocq
-        uses: actions/download-artifact@v4
-        with:
-          name: lagrange-gocq
-          path: ./lagrange
-
-      - name: Extract
-        run: |
-          mkdir extract
-          ls ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
-          file ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
-          unzip ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./extract/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ./extract/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
 
   ui-build:
     name: Build UI
@@ -635,12 +570,6 @@ jobs:
           name: lagrangeV2.linux-arm64
           path: ./sealdice-android/app/src/main/assets/sealdice/milky/
 
-      - name: Get Gocq-lagr
-        uses: actions/download-artifact@v4
-        with:
-          name: lagrange-gocq.android-arm64
-          path: ./sealdice-android/app/src/main/assets/sealdice/lagrange/
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -737,12 +666,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ./lagrange/
-
-      - name: Get Lagrange-Gocq
-        uses: actions/download-artifact@v4
-        with:
-          name: lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./lagrange/
 
       - name: Get Milky
