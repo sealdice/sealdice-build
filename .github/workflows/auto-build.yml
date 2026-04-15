@@ -103,6 +103,27 @@ jobs:
           name: lagrangeV2
           path: ./milky
 
+  yogurt-download:
+    name: Download Yogurt
+    runs-on: ubuntu-latest
+    needs: commit-num-check
+    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
+    steps:
+      - name: Download
+        run: |
+          mkdir milky
+          wget https://github.com/sealdice/acidify/releases/download/dev/yogurt-linux-arm64.zip -O milky/yogurt.linux-arm64.zip
+          wget https://github.com/sealdice/acidify/releases/download/dev/yogurt-linux-x64.zip -O milky/yogurt.linux-amd64.zip
+          wget https://github.com/sealdice/acidify/releases/download/dev/yogurt-macos-arm64.zip -O milky/yogurt.darwin-arm64.zip
+          wget https://github.com/sealdice/acidify/releases/download/dev/yogurt-windows-x64.zip -O milky/yogurt.windows-amd64.zip
+          wget https://github.com/sealdice/acidify/releases/download/dev/yogurt-android-arm64.zip -O milky/yogurt.android-arm64.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: yogurt
+          path: ./milky
+
   lagrange-setup:
     name: Download Lagrange
     runs-on: ubuntu-latest
@@ -189,6 +210,50 @@ jobs:
         with:
           name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
+
+  yogurt-setup:
+    name: Download Yogurt
+    runs-on: ubuntu-latest
+    needs: yogurt-download
+    strategy:
+      matrix:
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/arm64, android/arm64
+        goos: [ linux, windows, darwin, android ]
+        goarch: [ '386', amd64, arm64 ]
+        exclude:
+          - goos: linux
+            goarch: '386'
+          - goos: windows
+            goarch: arm64
+          - goos: windows
+            goarch: '386'
+          - goos: darwin
+            goarch: '386'
+          - goos: darwin
+            goarch: 'amd64'
+          - goos: android
+            goarch: amd64
+          - goos: android
+            goarch: '386'
+    steps:
+      - name: Get Lagrange
+        uses: actions/download-artifact@v4
+        with:
+          name: yogurt
+          path: ./milky
+
+      - name: Extract
+        run: |
+          mkdir extract
+          ls ./milky/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          file ./milky/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          unzip ./milky/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
 
   ui-build:
     name: Build UI
@@ -524,6 +589,7 @@ jobs:
       - resources-download
       - lagrange-setup
       - lagrangeV2-setup
+      - yogurt-setup
     env:
       ANDROID_VERSION: ${{needs.commit-num-check.outputs.ANDROID_VERSION}}
     steps:
@@ -568,6 +634,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lagrangeV2.linux-arm64
+          path: ./sealdice-android/app/src/main/assets/sealdice/milky/
+
+      - name: Get Yogurt
+        uses: actions/download-artifact@v4
+        with:
+          name: yogurt.android-arm64
           path: ./sealdice-android/app/src/main/assets/sealdice/milky/
 
       - name: Setup Java
@@ -630,6 +702,7 @@ jobs:
       - core-darwin-build
       - lagrange-setup
       - lagrangeV2-setup
+      - yogurt-setup
     strategy:
       matrix:
         # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
@@ -668,11 +741,18 @@ jobs:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./lagrange/
 
-      - name: Get Milky
+      - name: Get LagrangeV2
         if: matrix.goos != 'darwin' || matrix.goarch != 'amd64'
         uses: actions/download-artifact@v4
         with:
           name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./milky/
+
+      - name: Get Yogurt
+        if: matrix.goos != 'darwin' || matrix.goarch != 'amd64'
+        uses: actions/download-artifact@v4
+        with:
+          name: yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./milky/
 
       - name: Get Core
