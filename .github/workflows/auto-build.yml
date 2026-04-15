@@ -249,6 +249,11 @@ jobs:
           file ./milky/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}.zip
           unzip ./milky/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
 
+      - name: Move and Rename
+        if: matrix.goos != 'windows'
+        run: |
+          mv ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}/yogurt.kexe ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}/yogurt
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
