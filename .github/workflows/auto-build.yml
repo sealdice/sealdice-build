@@ -1060,3 +1060,6 @@ jobs:
             sealdice-core*
             sealdice-prerelease*
             lagrangeV2*
+            lagrangeV2
+            yogurt*
+            yogurt
