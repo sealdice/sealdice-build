@@ -822,12 +822,124 @@ jobs:
           files: |
             ./dist/sealdice*
 
+  docker-push:
+    name: Docker Push
+    runs-on: ubuntu-latest
+    needs:
+      - pc-pack
+      - commit-num-check
+    env:
+      PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Get Amd64 Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION }}_linux_amd64
+          path: ./amd64/
+      - name: Get Arm64 Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION }}_linux_arm64
+          path: ./arm64/
+
+      - name: Chmod
+        run:
+          chmod +x ./amd64/sealdice-core && chmod +x ./arm64/sealdice-core
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/sealdice
+          tags: |
+            type=raw,value=v${{ env.PROJECT_VERSION }}
+            type=raw,value=latest
+      - name: Docker Build
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./scripts/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            AUTHOR=${{ github.repository_owner }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  docker-push-full:
+    name: Docker Push (Full with Lagrange)
+    runs-on: ubuntu-latest
+    needs:
+      - pc-pack
+      - commit-num-check
+    env:
+      PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Get Amd64 Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION }}_linux_amd64
+          path: ./amd64/
+      - name: Get Arm64 Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION }}_linux_arm64
+          path: ./arm64/
+
+      - name: Chmod
+        run:
+          chmod +x ./amd64/sealdice-core && chmod +x ./arm64/sealdice-core
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/sealdice-full
+          tags: |
+            type=raw,value=v${{ env.PROJECT_VERSION }}
+            type=raw,value=latest
+      - name: Docker Build
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./scripts/Dockerfile.full
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            AUTHOR=${{ github.repository_owner }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   clear-temp-artifact:
     name: Clear Temp Artifacts
     if: always()
     runs-on: ubuntu-latest
     needs:
       - prerelease
+      - docker-push
+      - docker-push-full
     steps:
       - uses: geekyeggo/delete-artifact@v4
         with:
