@@ -14,11 +14,11 @@ ARG TARGETARCH
 COPY ./${TARGETARCH}/data ${SEAL_HOME}/buildin-data
 COPY --chmod=0755 ./${TARGETARCH}/sealdice-core  ${SEAL_HOME}/sealdice-core
 
-RUN echo "#!/bin/sh" > ${SEAL_HOME}/entrypoint.sh
-RUN echo "mkdir -p ./data/" >> ${SEAL_HOME}/entrypoint.sh
-RUN echo "cp -r /buildin-data/* ./data/" >> ${SEAL_HOME}/entrypoint.sh
-RUN echo "/sealdice-core --container-mode" >> ${SEAL_HOME}/entrypoint.sh
-RUN chmod +x ${SEAL_HOME}/entrypoint.sh
+RUN echo '#!/bin/sh' > ${SEAL_HOME}/entrypoint.sh && \
+    echo 'mkdir -p ./data/' >> ${SEAL_HOME}/entrypoint.sh && \
+    echo 'cp -r /buildin-data/* ./data/' >> ${SEAL_HOME}/entrypoint.sh && \
+    echo 'exec /sealdice-core --container-mode "$@"' >> ${SEAL_HOME}/entrypoint.sh && \
+    chmod +x ${SEAL_HOME}/entrypoint.sh
 
 # 启动
 EXPOSE 3211

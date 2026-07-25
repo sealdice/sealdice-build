@@ -1,26 +1,72 @@
 name: Release Build
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without the leading v
+        required: true
+        default: "1.6.0"
+        type: string
+      build_date:
+        description: Build metadata date in YYYYMMDD format
+        required: true
+        type: string
+      publish_release:
+        description: Create or update the GitHub Release
+        required: true
+        default: false
+        type: boolean
+      release_prerelease:
+        description: Mark the GitHub Release as a prerelease
+        required: true
+        default: false
+        type: boolean
+      allow_release_update:
+        description: Allow updating an existing release tag and its assets
+        required: true
+        default: false
+        type: boolean
+      publish_docker:
+        description: Push versioned and latest Docker images to GHCR
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-build-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   ANDROID_NDK_VERSION: r25c
   COMMIT_ID: "${{ github.sha }}"
-  NO_BUILD_PROMPT: "no new commits, no need to build."
+  APP_RUNNER_URL: "https://d1.sealdice.com/lagrange/app-runner-std-arm64.tar.gz"
+  APP_RUNNER_SHA256: "5df665ac06223eb89c9552263ee3ce790a9e9d1cbd13ca53ec82f890168051c6"
+  LAGRANGE_VERSION: "0.0.6"
+  LAGRANGE_V2_BASE_URL: "https://github.com/sealdice/LagrangeV2/releases/download/nightly"
+  LAGRANGE_V2_LINUX_ARM64_SHA256: "b80ae8e55f23ab223b3c349a4185a1133fb219e060b0c395778040eb5e0bbe84"
+  LAGRANGE_V2_LINUX_AMD64_SHA256: "0d84fada259a4555fdc33aa35ed5a899a3c9da13197665ee16fd59bec0a727cc"
+  LAGRANGE_V2_DARWIN_ARM64_SHA256: "d7375de075e7d443e1388e0f35e21a1c0ee2b45f8dbd723ef560e34a7be7b33e"
+  LAGRANGE_V2_WINDOWS_AMD64_SHA256: "fcc4405cd265b86b347253081246a6fada3b1c8ef21bf7db39b6b80112ae263b"
+  YOGURT_BASE_URL: "https://github.com/sealdice/acidify/releases/download/dev"
+  YOGURT_ANDROID_ARM64_SHA256: "a8e2440857afb14e3b7516622cd3abdcfc4bbca8d80bed36765f5571911c10ce"
+  YOGURT_LINUX_ARM64_SHA256: "53833d7f034a663bc731be8e0d84419d04555abfaaffccd9944659026fbbd977"
+  YOGURT_LINUX_AMD64_SHA256: "c691e1ffa73e1d2a81f2caa7602f379075dd2d51fcfc32c83b0c939c39450312"
+  YOGURT_DARWIN_ARM64_SHA256: "6b6b0cf0d1fdc22d415a8d63f6af8f6b5512bcb02abc38b8718cdd35272af8de"
+  YOGURT_WINDOWS_AMD64_SHA256: "1ba226a5aa569cd78ef72158b063a0b27aa7b03e7bc5038f4d51822c84bfb5ae"
   NT_SIGN_URL: ${{ secrets.NT_SIGN_URL }}
 
 jobs:
   commit-num-check:
-    name: Check Commit Num
+    name: Release Metadata
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: true
-
-      - name: Get New Commits
-        id: get-commits
-        run: echo "NEW_COMMIT_COUNT=$(git log --oneline --since '24 hours ago' | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Get Commit IDs
         id: get-commit-ids
@@ -32,39 +78,38 @@ jobs:
 
       - name: Get Version
         id: get-version
+        env:
+          PROJECT_VERSION_INPUT: ${{ inputs.version }}
+          BUILD_DATE_INPUT: ${{ inputs.build_date }}
         run: |
-          cd sealdice-core
-          # echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION=1.5.1" >> "$GITHUB_OUTPUT";
-          echo "PROJECT_VERSION_DISPLAY=v1.5.1 v20251010" >> "$GITHUB_OUTPUT";
-
-      - name: Get current time
-        uses: Kaven-Universe/github-action-current-date-time@v1
-        id: currentTime
-        with:
-          format: YYYYMMDD
-          timezone-offset: -480
-
-      - name: Warning
-        run: if [ $(git log --oneline --since '24 hours ago' | wc -l) <= 0 ]; then echo $NO_BUILD_PROMPT; fi
+          set -euo pipefail
+          if [[ ! "$PROJECT_VERSION_INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]]; then
+            echo "Invalid release version: $PROJECT_VERSION_INPUT" >&2
+            exit 1
+          fi
+          if [[ ! "$BUILD_DATE_INPUT" =~ ^[0-9]{8}$ ]]; then
+            echo "Invalid build date: $BUILD_DATE_INPUT" >&2
+            exit 1
+          fi
+          echo "PROJECT_VERSION=$PROJECT_VERSION_INPUT" >> "$GITHUB_OUTPUT"
+          echo "PROJECT_VERSION_DISPLAY=v${PROJECT_VERSION_INPUT} v${BUILD_DATE_INPUT}" >> "$GITHUB_OUTPUT"
+          echo "BUILD_DATE=$BUILD_DATE_INPUT" >> "$GITHUB_OUTPUT"
     outputs:
-      commit-count: ${{ steps.get-commits.outputs.NEW_COMMIT_COUNT }}
       CORE_CID: ${{ steps.get-commit-ids.outputs.CORE_CID }}
       UI_CID: ${{ steps.get-commit-ids.outputs.UI_CID }}
       ANDROID_VERSION: ${{ steps.get-commit-ids.outputs.ANDROID_VERSION }}
       PROJECT_VERSION: ${{ steps.get-version.outputs.PROJECT_VERSION }}
       PROJECT_VERSION_DISPLAY: ${{ steps.get-version.outputs.PROJECT_VERSION_DISPLAY }}
-      CUR_TIME: ${{ steps.currentTime.outputs.time }}
+      BUILD_DATE: ${{ steps.get-version.outputs.BUILD_DATE }}
       SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
 
   resources-download:
     name: Download Related Resources
     runs-on: ubuntu-latest
     needs: commit-num-check
-    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
     steps:
       - name: Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           submodules: true
       - name: Upload Documents
@@ -77,18 +122,19 @@ jobs:
     name: Download Lagrange
     runs-on: ubuntu-latest
     needs: commit-num-check
-    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
     steps:
       - name: Download
         run: |
+          set -euo pipefail
           mkdir lag
-          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_linux-arm64_8.0.zip > lag/Lagrange.OneBot.linux-arm64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_linux-x64_8.0.zip > lag/Lagrange.OneBot.linux-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_win-x64_8.0.zip > lag/Lagrange.OneBot.windows-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_win-x86_8.0.zip > lag/Lagrange.OneBot.windows-386.zip
-          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_osx-arm64_8.0.zip > lag/Lagrange.OneBot.darwin-arm64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_osx-x64_8.0.zip > lag/Lagrange.OneBot.darwin-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_linux-musl-arm64_8.0.zip > lag/Lagrange.OneBot.android-arm64.zip
+          base_url="https://d1.sealdice.com/lagrange/${LAGRANGE_VERSION}"
+          curl --fail --location --retry 3 --retry-all-errors --output lag/Lagrange.OneBot.linux-arm64.zip "$base_url/Lagrange.OneBot_linux-arm64_8.0.zip"
+          curl --fail --location --retry 3 --retry-all-errors --output lag/Lagrange.OneBot.linux-amd64.zip "$base_url/Lagrange.OneBot_linux-x64_8.0.zip"
+          curl --fail --location --retry 3 --retry-all-errors --output lag/Lagrange.OneBot.windows-amd64.zip "$base_url/Lagrange.OneBot_win-x64_8.0.zip"
+          curl --fail --location --retry 3 --retry-all-errors --output lag/Lagrange.OneBot.darwin-arm64.zip "$base_url/Lagrange.OneBot_osx-arm64_8.0.zip"
+          curl --fail --location --retry 3 --retry-all-errors --output lag/Lagrange.OneBot.darwin-amd64.zip "$base_url/Lagrange.OneBot_osx-x64_8.0.zip"
+          curl --fail --location --retry 3 --retry-all-errors --output lag/Lagrange.OneBot.android-arm64.zip "$base_url/Lagrange.OneBot_linux-musl-arm64_8.0.zip"
+          for archive in lag/*.zip; do unzip -t "$archive" >/dev/null; done
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -96,28 +142,55 @@ jobs:
           name: lagrange
           path: ./lag
 
-  lagrange-gocq-download:
-    name: Download Lagrange-Gocq
+  lagrange-v2-download:
+    name: Download LagrangeV2
     runs-on: ubuntu-latest
     needs: commit-num-check
-    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
     steps:
       - name: Download
         run: |
-          mkdir lag
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_android_arm64.zip > lag/lagrange-gocq.android-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_linux_arm64.zip > lag/lagrange-gocq.linux-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_linux_amd64.zip > lag/lagrange-gocq.linux-amd64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_windows_amd64.zip > lag/lagrange-gocq.windows-amd64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_windows_386.zip > lag/lagrange-gocq.windows-386.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_darwin_arm64.zip > lag/lagrange-gocq.darwin-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.3/lagrange-gocq_darwin_amd64.zip > lag/lagrange-gocq.darwin-amd64.zip
+          set -euo pipefail
+          mkdir milky
+          download() {
+            curl --fail --location --retry 3 --retry-all-errors --output "$2" "$1"
+            echo "$3  $2" | sha256sum --check -
+          }
+          download "$LAGRANGE_V2_BASE_URL/Lagrange.Milky-linux-arm64" milky/lagrangeV2.linux-arm64 "$LAGRANGE_V2_LINUX_ARM64_SHA256"
+          download "$LAGRANGE_V2_BASE_URL/Lagrange.Milky-linux-x64" milky/lagrangeV2.linux-amd64 "$LAGRANGE_V2_LINUX_AMD64_SHA256"
+          download "$LAGRANGE_V2_BASE_URL/Lagrange.Milky-osx-arm64" milky/lagrangeV2.darwin-arm64 "$LAGRANGE_V2_DARWIN_ARM64_SHA256"
+          download "$LAGRANGE_V2_BASE_URL/Lagrange.Milky-win-x64.exe" milky/lagrangeV2.windows-amd64.exe "$LAGRANGE_V2_WINDOWS_AMD64_SHA256"
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: lagrange-gocq
-          path: ./lag
+          name: lagrangeV2
+          path: ./milky
+
+  yogurt-download:
+    name: Download Yogurt
+    runs-on: ubuntu-latest
+    needs: commit-num-check
+    steps:
+      - name: Download
+        run: |
+          set -euo pipefail
+          mkdir milky
+          download() {
+            curl --fail --location --retry 3 --retry-all-errors --output "$2" "$1"
+            echo "$3  $2" | sha256sum --check -
+            unzip -t "$2" >/dev/null
+          }
+          download "$YOGURT_BASE_URL/yogurt-android-arm64.zip" milky/yogurt.android-arm64.zip "$YOGURT_ANDROID_ARM64_SHA256"
+          download "$YOGURT_BASE_URL/yogurt-linux-arm64.zip" milky/yogurt.linux-arm64.zip "$YOGURT_LINUX_ARM64_SHA256"
+          download "$YOGURT_BASE_URL/yogurt-linux-x64.zip" milky/yogurt.linux-amd64.zip "$YOGURT_LINUX_AMD64_SHA256"
+          download "$YOGURT_BASE_URL/yogurt-macos-arm64.zip" milky/yogurt.darwin-arm64.zip "$YOGURT_DARWIN_ARM64_SHA256"
+          download "$YOGURT_BASE_URL/yogurt-windows-x64.zip" milky/yogurt.windows-amd64.zip "$YOGURT_WINDOWS_AMD64_SHA256"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: yogurt
+          path: ./milky
 
 
   lagrange-setup:
@@ -126,20 +199,19 @@ jobs:
     needs: lagrange-download
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
-        goos: [ linux, windows, darwin, android ]
-        goarch: [ '386', amd64, arm64 ]
-        exclude:
+        include:
           - goos: linux
-            goarch: '386'
-          - goos: windows
-            goarch: arm64
-          - goos: darwin
-            goarch: '386'
-          - goos: android
             goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
           - goos: android
-            goarch: '386'
+            goarch: arm64
     steps:
       - name: Get Lagrange
         uses: actions/download-artifact@v4
@@ -159,59 +231,97 @@ jobs:
         with:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./extract/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}
-  lagrange-gocq-setup:
-    name: Download Lagrange-Gocq
+  lagrange-v2-setup:
+    name: Prepare LagrangeV2
     runs-on: ubuntu-latest
-    needs: lagrange-gocq-download
+    needs: lagrange-v2-download
     strategy:
       matrix:
-        goos: [ linux, windows, darwin, android ]
-        goarch: [ '386', amd64, arm64 ]
-        exclude:
+        include:
           - goos: linux
-            goarch: '386'
-          - goos: windows
+            goarch: amd64
+          - goos: linux
             goarch: arm64
           - goos: windows
-            goarch: '386'
-          - goos: darwin
-            goarch: '386'
-          - goos: android
             goarch: amd64
-          - goos: android
-            goarch: '386'
+          - goos: darwin
+            goarch: arm64
     steps:
-      - name: Get Lagrange-Gocq
+      - name: Get LagrangeV2
         uses: actions/download-artifact@v4
         with:
-          name: lagrange-gocq
-          path: ./lagrange
+          name: lagrangeV2
+          path: ./milky
 
-      - name: Extract
+      - name: Prepare Executable
+        if: matrix.goos != 'windows'
         run: |
-          mkdir extract
-          ls ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
-          file ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
-          unzip ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./extract/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+          install -D -m 0755 ./milky/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }} ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}/lagrangeV2
+
+      - name: Prepare Windows Executable
+        if: matrix.goos == 'windows'
+        run: |
+          mkdir -p ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
+          mv ./milky/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}.exe ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}/lagrangeV2.exe
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ./extract/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+          name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./milkytmp/lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
+
+  yogurt-setup:
+    name: Prepare Yogurt
+    runs-on: ubuntu-latest
+    needs: yogurt-download
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: android
+            goarch: arm64
+    steps:
+      - name: Get Yogurt
+        uses: actions/download-artifact@v4
+        with:
+          name: yogurt
+          path: ./milky
+
+      - name: Extract
+        run: |
+          mkdir -p ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
+          unzip -q ./milky/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - name: Prepare Executable
+        if: matrix.goos != 'windows'
+        run: |
+          mv ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}/yogurt.kexe ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}/yogurt
+          chmod 0755 ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}/yogurt
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./extract/yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
 
 
   ui-build:
     name: Build UI
     runs-on: ubuntu-latest
     needs: commit-num-check
-    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
     env:
       UI_CID: ${{needs.commit-num-check.outputs.UI_CID}}
     steps:
       - name: Cache ui dist get
         id: cache-ui-dist
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         env:
           cache-name: cache-ui-dist
         with:
@@ -220,7 +330,7 @@ jobs:
 
       - name: Code
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           submodules: true
           fetch-depth: 0
@@ -230,19 +340,30 @@ jobs:
         continue-on-error: true
         run: ls ./sealdice-ui/dist
 
-      - name: Install Node
-        uses: actions/setup-node@v3
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         with:
-          node-version: latest
+          version: 10
+          run_install: false
+
+      - name: Install Node
+        uses: actions/setup-node@v5
+        if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: sealdice-ui/pnpm-lock.yaml
+
       - name: Install Dependencies
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-ui
-        run: npm install
+        run: pnpm install --frozen-lockfile
+
       - name: Build WebUI
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-ui
-        run: npm run build
+        run: pnpm run build
 
       - name: Upload UI
         uses: actions/upload-artifact@v4
@@ -257,53 +378,39 @@ jobs:
       - commit-num-check
       - ui-build
     env:
-      CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
+      BUILD_DATE: ${{needs.commit-num-check.outputs.BUILD_DATE}}
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
       SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64
+        # target: linux/amd64, linux/arm64, windows/amd64
         goos: [ linux, windows ]
         goarch: [ amd64, arm64 ]
         exclude:
-          - goos: linux
-            goarch: '386'
           - goos: windows
             goarch: arm64
       fail-fast: true
     steps:
-      # - name: Cache dist get
-      #   id: cache-core-dist
-      #   uses: actions/cache@v3
-      #   env:
-      #     cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
-      #   with:
-      #     path: ./sealdice-core/output
-      #     key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
-
       - name: Apt-get Update
         run: sudo apt-get update
 
       - name: Code
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           submodules: true
 
       - name: Install Cross-compiler for Windows
-        if: matrix.goos == 'windows' && steps.cache-core-dist.outputs.cache-hit != 'true'
+        if: matrix.goos == 'windows'
         run: sudo apt-get -y install mingw-w64
       - name: Install Cross-compiler for Linux Arm64
-        if: matrix.goos == 'linux' && matrix.goarch == 'arm64' && steps.cache-core-dist.outputs.cache-hit != 'true'
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Install Go
-        uses: actions/setup-go@v3
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25.7'
       - name: Apply Go Patch
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         run: |
           set -eo pipefail
           GO_VERSION=$(go env GOVERSION)
@@ -328,19 +435,16 @@ jobs:
             echo "Patch appears already applied or incompatible, skipping."
           fi
       - name: Install Dependencies
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
       - name: Set Env
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -361,7 +465,6 @@ jobs:
             echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV;
           fi
       - name: Build Binary
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -370,11 +473,10 @@ jobs:
           CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }} # 为了规避glibc兼容问题，linux上不使用cgo
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
         working-directory: ./sealdice-core
-        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20251010 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
 
       - name: Run UPX
         uses: crazy-max/ghaction-upx@v3
-        if: matrix.musl == ''
         with:
           version: latest
           files: ./sealdice-core/output/${{ env.BINARY_NAME }}
@@ -395,7 +497,7 @@ jobs:
     env:
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
-      CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
+      BUILD_DATE: ${{needs.commit-num-check.outputs.BUILD_DATE}}
       SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
     strategy:
       matrix:
@@ -404,28 +506,16 @@ jobs:
         goarch: [ amd64, arm64 ]
       fail-fast: true
     steps:
-      # - name: Cache dist get
-      #   id: cache-core-dist
-      #   uses: actions/cache@v3
-      #   env:
-      #     cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
-      #   with:
-      #     path: ./sealdice-core/output
-      #     key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
-
       - name: Code
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           submodules: true
 
       - name: Install Go
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25.7'
       - name: Apply Go Patch
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         run: |
           set -eo pipefail
           GO_VERSION=$(go env GOVERSION)
@@ -450,19 +540,16 @@ jobs:
             echo "Patch appears already applied or incompatible, skipping."
           fi
       - name: Install dependencies
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
       - name: Build Binary
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -470,7 +557,7 @@ jobs:
           CGO_ENABLED: 1
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20251010 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
 
       - name: Upload Core
         uses: actions/upload-artifact@v4
@@ -481,32 +568,22 @@ jobs:
   core-android-build:
     name: Build Core (android, arm64)
     runs-on: ubuntu-22.04
+    if: ${{ inputs.publish_release }}
     needs:
       - commit-num-check
       - ui-build
     env:
       CORE_CID: ${{needs.commit-num-check.outputs.CORE_CID}}
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
-      CUR_TIME: ${{needs.commit-num-check.outputs.CUR_TIME}}
+      BUILD_DATE: ${{needs.commit-num-check.outputs.BUILD_DATE}}
       SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
     steps:
-      # - name: Cache dist get
-      #   id: cache-core-dist
-      #   uses: actions/cache@v3
-      #   env:
-      #     cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}
-      #   with:
-      #     path: ./sealdice-core/output
-      #     key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}
-
       - name: Code
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           submodules: true
 
       - name: Setup Android NDK
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
@@ -514,12 +591,10 @@ jobs:
           link-to-sdk: true
           local-cache: false
       - name: Install Go
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25.7'
       - name: Apply Go Patch
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         run: |
           set -eo pipefail
           GO_VERSION=$(go env GOVERSION)
@@ -544,19 +619,16 @@ jobs:
             echo "Patch appears already applied or incompatible, skipping."
           fi
       - name: Install dependencies
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
       - name: Build binary
-        if: steps.cache-core-dist.outputs.cache-hit != 'true'
         env:
           GOOS: android
           GOARCH: arm64
@@ -564,7 +636,7 @@ jobs:
           CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+20251010 -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
@@ -579,12 +651,14 @@ jobs:
       - core-android-build
       - resources-download
       - lagrange-setup
+      - lagrange-v2-setup
+      - yogurt-setup
     env:
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
       ANDROID_VERSION: ${{needs.commit-num-check.outputs.ANDROID_VERSION}}
     steps:
       - name: Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           submodules: true
       - name: Get Core-android
@@ -600,7 +674,11 @@ jobs:
 
       - name: Get App-Runner
         run: |
-          curl https://d1.sealdice.com/lagrange/app-runner-std-arm64.tar.gz > ./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
+          set -euo pipefail
+          output=./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
+          curl --fail --location --retry 3 --retry-all-errors --output "$output" "$APP_RUNNER_URL"
+          echo "$APP_RUNNER_SHA256  $output" | sha256sum --check -
+          tar -tzf "$output" >/dev/null
 
       - name: Get Lagrange
         uses: actions/download-artifact@v4
@@ -608,8 +686,20 @@ jobs:
           name: lagrange.android-arm64
           path: ./sealdice-android/app/src/main/assets/sealdice/lagrange/
 
+      - name: Get LagrangeV2
+        uses: actions/download-artifact@v4
+        with:
+          name: lagrangeV2.linux-arm64
+          path: ./sealdice-android/app/src/main/assets/sealdice/milky/
+
+      - name: Get Yogurt
+        uses: actions/download-artifact@v4
+        with:
+          name: yogurt.android-arm64
+          path: ./sealdice-android/app/src/main/assets/sealdice/milky/
+
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -625,7 +715,7 @@ jobs:
       - name: Set Version
         working-directory: ./sealdice-android/app
         run: |
-          sed -i 's/versionName ".*"/versionName "${{ env.ANDROID_VERSION }}"/g' build.gradle
+          sed -i 's/versionName ".*"/versionName "${{ env.PROJECT_VERSION }}"/g' build.gradle
       - name: Build Apk
         working-directory: ./sealdice-android
         run: |
@@ -665,21 +755,18 @@ jobs:
       - core-darwin-build
       - commit-num-check
       - lagrange-setup
-      - lagrange-gocq-setup
+      - lagrange-v2-setup
+      - yogurt-setup
     env:
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
         goos: [ linux, windows, darwin ]
         goarch: [ amd64, arm64 ]
         exclude:
-          - goos: linux
-            goarch: '386'
           - goos: windows
             goarch: arm64
-          - goos: darwin
-            goarch: '386'
     steps:
       - name: Get Documents
         uses: actions/download-artifact@v4
@@ -693,11 +780,19 @@ jobs:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./lagrange/
 
-      - name: Get Lagrange-Gocq
+      - name: Get LagrangeV2
+        if: matrix.goos != 'darwin' || matrix.goarch != 'amd64'
         uses: actions/download-artifact@v4
         with:
-          name: lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ./lagrange/
+          name: lagrangeV2.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./milky/
+
+      - name: Get Yogurt
+        if: matrix.goos != 'darwin' || matrix.goarch != 'amd64'
+        uses: actions/download-artifact@v4
+        with:
+          name: yogurt.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./milky/
 
       - name: Get Core
         uses: actions/download-artifact@v4
@@ -727,16 +822,12 @@ jobs:
       ANDROID_VERSION: ${{needs.commit-num-check.outputs.ANDROID_VERSION}}
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64, android/arm64
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64, android/arm64
         goos: [ linux, windows, darwin ]
         goarch: [ amd64, arm64 ]
         exclude:
-          - goos: linux
-            goarch: '386'
           - goos: windows
             goarch: arm64
-          - goos: darwin
-            goarch: '386'
         include:
           - goos: android
             goarch: arm64
@@ -787,9 +878,10 @@ jobs:
           name: sealdice-prerelease_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ${{ env.DIST }}
 
-  prerelease:
-    name: PreRelease
+  release:
+    name: GitHub Release
     runs-on: ubuntu-latest
+    if: ${{ inputs.publish_release }}
     needs:
       - preparation
       - android-build
@@ -800,6 +892,21 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check Release Tag
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Refuse Existing Release Tag
+        if: ${{ inputs.allow_release_update == false }}
+        env:
+          RELEASE_TAG: v${{ env.PROJECT_VERSION }}
+        run: |
+          if git show-ref --verify --quiet "refs/tags/${RELEASE_TAG}"; then
+            echo "Release tag ${RELEASE_TAG} already exists. Enable allow_release_update to update it." >&2
+            exit 1
+          fi
+
       - name: Get Files
         uses: actions/download-artifact@v4
         with:
@@ -810,28 +917,33 @@ jobs:
         run: |
           cd ./dist
           zip -r ./sealdice-core_all_platform_${PROJECT_VERSION}.zip ./
-      - name: Update Prerelease
-        uses: andelf/nightly-release@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish Release
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: v${{ env.PROJECT_VERSION }}
+          tag: v${{ env.PROJECT_VERSION }}
           name: ${{ env.PROJECT_VERSION_DISPLAY }}
-          prerelease: true
+          prerelease: ${{ inputs.release_prerelease }}
           body: '[改动日志](https://sealdice.com/changelog)'
-          files: |
-            ./dist/sealdice*
+          artifacts: ./dist/sealdice*
+          artifactErrorsFailBuild: true
+          allowUpdates: ${{ inputs.allow_release_update }}
+          removeArtifacts: ${{ inputs.allow_release_update }}
+          replacesArtifacts: true
 
   docker-push:
     name: Docker Push
     runs-on: ubuntu-latest
+    if: ${{ inputs.publish_docker }}
     needs:
       - pc-pack
       - commit-num-check
     env:
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
@@ -851,7 +963,7 @@ jobs:
           chmod +x ./amd64/sealdice-core && chmod +x ./arm64/sealdice-core
 
       - name: Docker Login
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -866,7 +978,7 @@ jobs:
             type=raw,value=v${{ env.PROJECT_VERSION }}
             type=raw,value=latest
       - name: Docker Build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./scripts/Dockerfile
@@ -880,13 +992,17 @@ jobs:
   docker-push-full:
     name: Docker Push (Full with Lagrange)
     runs-on: ubuntu-latest
+    if: ${{ inputs.publish_docker }}
     needs:
       - pc-pack
       - commit-num-check
     env:
       PROJECT_VERSION: ${{needs.commit-num-check.outputs.PROJECT_VERSION}}
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
@@ -906,7 +1022,7 @@ jobs:
           chmod +x ./amd64/sealdice-core && chmod +x ./arm64/sealdice-core
 
       - name: Docker Login
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -921,7 +1037,7 @@ jobs:
             type=raw,value=v${{ env.PROJECT_VERSION }}
             type=raw,value=latest
       - name: Docker Build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./scripts/Dockerfile.full
@@ -937,16 +1053,20 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     needs:
-      - prerelease
+      - release
       - docker-push
       - docker-push-full
+    permissions:
+      actions: write
+      contents: read
     steps:
       - uses: geekyeggo/delete-artifact@v4
         with:
+          token: ${{ github.token }}
           name: |
             documents
             lagrange*
-            lagrange-gocq*
+            yogurt*
             sealdice-ui
             sealdice-core*
             sealdice_*

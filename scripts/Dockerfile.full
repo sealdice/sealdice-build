@@ -1,10 +1,10 @@
-FROM debian:12-slim
+FROM ubuntu:24.04
 
 # 安装所需软件包
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         tzdata \
-        libicu72 \
+        libicu74 \
         libstdc++6 \
     && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata \
@@ -20,12 +20,14 @@ ARG TARGETARCH
 COPY ./${TARGETARCH}/data /app/buildin-data
 COPY --chmod=0755 ./${TARGETARCH}/sealdice-core /app/sealdice-core
 COPY ./${TARGETARCH}/lagrange /app/lagrange
+COPY ./${TARGETARCH}/milky /app/milky
 
 RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
     echo 'mkdir -p ./data/' >> /app/entrypoint.sh && \
     echo 'rm -f ./lagrange && ln -s /app/lagrange/ ./lagrange' >> /app/entrypoint.sh && \
+    echo 'rm -f ./milky && ln -s /app/milky/ ./milky' >> /app/entrypoint.sh && \
     echo 'cp -r /app/buildin-data/* ./data/' >> /app/entrypoint.sh && \
-    echo 'exec /app/sealdice-core' >> /app/entrypoint.sh && \
+    echo 'exec /app/sealdice-core "$@"' >> /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 
 # 启动
