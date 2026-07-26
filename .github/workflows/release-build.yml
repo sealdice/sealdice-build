@@ -95,6 +95,17 @@ jobs:
           echo "PROJECT_VERSION=$PROJECT_VERSION_INPUT" >> "$GITHUB_OUTPUT"
           echo "PROJECT_VERSION_DISPLAY=v${PROJECT_VERSION_INPUT} v${BUILD_DATE_INPUT}" >> "$GITHUB_OUTPUT"
           echo "BUILD_DATE=$BUILD_DATE_INPUT" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Signing Configuration
+        env:
+          SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
+          SEAL_SIGN_PRIVATE_KEY: ${{ secrets.SEAL_SIGN_PRIVATE_KEY }}
+          SEAL_SIGN_V3_URL: ${{ secrets.SEAL_SIGN_V3_URL }}
+        run: |
+          set -euo pipefail
+          : "${SEAL_TRUSTED_PRIVATE_KEY:?SEAL_TRUSTED_PRIVATE_KEY is not configured}"
+          : "${SEAL_SIGN_PRIVATE_KEY:?SEAL_SIGN_PRIVATE_KEY is not configured}"
+          : "${SEAL_SIGN_V3_URL:?SEAL_SIGN_V3_URL is not configured}"
     outputs:
       CORE_CID: ${{ steps.get-commit-ids.outputs.CORE_CID }}
       UI_CID: ${{ steps.get-commit-ids.outputs.UI_CID }}
@@ -473,8 +484,10 @@ jobs:
           # CGO_ENABLED: ${{ matrix.goarch != 'arm64' && 1 || 0 }}
           CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }} # 为了规避glibc兼容问题，linux上不使用cgo
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+          SEAL_SIGN_PRIVATE_KEY: ${{ secrets.SEAL_SIGN_PRIVATE_KEY }}
+          SEAL_SIGN_V3_URL: ${{ secrets.SEAL_SIGN_V3_URL }}
         working-directory: ./sealdice-core
-        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}' -X 'sealdice-core/dice.SealSignClientPrivateKey=${SEAL_SIGN_PRIVATE_KEY}' -X 'sealdice-core/dice.SealSignV3Url=${SEAL_SIGN_V3_URL}'" .
 
       - name: Run UPX
         uses: crazy-max/ghaction-upx@v3
@@ -557,8 +570,10 @@ jobs:
           GO111MODULE: on
           CGO_ENABLED: 1
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
+          SEAL_SIGN_PRIVATE_KEY: ${{ secrets.SEAL_SIGN_PRIVATE_KEY }}
+          SEAL_SIGN_V3_URL: ${{ secrets.SEAL_SIGN_V3_URL }}
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}' -X 'sealdice-core/dice.SealSignClientPrivateKey=${SEAL_SIGN_PRIVATE_KEY}' -X 'sealdice-core/dice.SealSignV3Url=${SEAL_SIGN_V3_URL}'" .
 
       - name: Upload Core
         uses: actions/upload-artifact@v4
@@ -636,8 +651,10 @@ jobs:
           CGO_ENABLED: 1
           CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
+          SEAL_SIGN_PRIVATE_KEY: ${{ secrets.SEAL_SIGN_PRIVATE_KEY }}
+          SEAL_SIGN_V3_URL: ${{ secrets.SEAL_SIGN_V3_URL }}
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_MAIN=${PROJECT_VERSION} -X sealdice-core/dice.VERSION_PRERELEASE= -X sealdice-core/dice.VERSION_BUILD_METADATA=+${BUILD_DATE} -X sealdice-core/dice.APP_CHANNEL=stable -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}' -X 'sealdice-core/dice.SealSignClientPrivateKey=${SEAL_SIGN_PRIVATE_KEY}' -X 'sealdice-core/dice.SealSignV3Url=${SEAL_SIGN_V3_URL}'" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
