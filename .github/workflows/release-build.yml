@@ -10,16 +10,17 @@ on:
       build_date:
         description: Build metadata date in YYYYMMDD format
         required: true
+        default: "20260726"
         type: string
       publish_release:
         description: Create or update the GitHub Release
         required: true
-        default: false
+        default: true
         type: boolean
       release_prerelease:
         description: Mark the GitHub Release as a prerelease
         required: true
-        default: false
+        default: true
         type: boolean
       allow_release_update:
         description: Allow updating an existing release tag and its assets
