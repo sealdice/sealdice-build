@@ -1,0 +1,46 @@
+{
+  "name": "sealdice",
+  "version": "0.0.0-development",
+  "private": true,
+  "description": "SealDice, a cross-platform TRPG dice bot.",
+  "bin": {
+    "sealdice": "bin/sealdice.js"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "optionalDependencies": {
+    "@sealtrpg/sealdice-win32-x64": "0.0.0-development",
+    "@sealtrpg/sealdice-darwin-x64": "0.0.0-development",
+    "@sealtrpg/sealdice-darwin-arm64": "0.0.0-development",
+    "@sealtrpg/sealdice-linux-x64": "0.0.0-development",
+    "@sealtrpg/sealdice-linux-arm64": "0.0.0-development"
+  },
+  "keywords": [
+    "sealdice",
+    "trpg",
+    "dice",
+    "bot"
+  ],
+  "author": "SealDice Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sealdice/sealdice-build.git"
+  },
+  "homepage": "https://sealdice.com",
+  "bugs": {
+    "url": "https://github.com/sealdice/sealdice-build/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

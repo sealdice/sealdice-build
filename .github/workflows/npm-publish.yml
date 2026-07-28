@@ -1,0 +1,85 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Stable GitHub Release tag; blank selects the latest stable release
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Package GitHub Release and publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install npm with OIDC support
+        run: npm install --global npm@^11.5.1
+
+      - name: Run unit tests
+        run: |
+          python -m unittest discover -s tests -p "test_*.py"
+          node --test npm/test/*.test.js
+
+      - name: Build npm packages from GitHub Release
+        id: build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python scripts/build-npm-packages.py --release-tag "$RELEASE_TAG"
+
+      - name: Pack and validate npm tarballs
+        run: python scripts/publish-npm-packages.py --dry-run
+
+      - name: Smoke test Linux x64 binary
+        env:
+          EXPECTED_VERSION: ${{ steps.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          output="$(.npm-dist/packages/linux-x64/payload/sealdice-core --version)"
+          echo "sealdice-core --version: $output"
+          if [[ "$output" != *"$EXPECTED_VERSION"* ]]; then
+            echo "Expected version $EXPECTED_VERSION in binary output" >&2
+            exit 1
+          fi
+
+      - name: Publish platform packages and main package
+        run: python scripts/publish-npm-packages.py
+
+      - name: Upload release manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-release-manifests-${{ steps.build.outputs.version || 'failed' }}
+          path: |
+            .npm-dist/build-manifest.json
+            .npm-dist/pack-manifest.json
+            .npm-dist/packages/*/payload-manifest.json
+          if-no-files-found: ignore
+          retention-days: 30
