@@ -4,3 +4,10 @@
 # vscode
 .vscode
 .history/
+
+# Generated npm release packages
+.npm-dist/
+
+# Python test caches
+__pycache__/
+*.py[cod]

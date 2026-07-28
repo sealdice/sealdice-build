@@ -1,0 +1,23 @@
+name: Publish to npm
+
+# Keep the manual workflow registered on the default branch. The complete npm
+# publishing workflow lives on master and must be dispatched with ref=master.
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Stable GitHub Release tag; blank selects the latest stable release
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  dev-placeholder:
+    name: npm publishing is disabled on dev
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Select the master branch to publish a stable npm release."
