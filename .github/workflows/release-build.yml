@@ -5,12 +5,12 @@ on:
       version:
         description: Release version without the leading v
         required: true
-        default: "1.6.0"
+        default: "1.6.1"
         type: string
       build_date:
         description: Build metadata date in YYYYMMDD format
         required: true
-        default: "20260726"
+        default: "20260810"
         type: string
       publish_release:
         description: Create or update the GitHub Release
@@ -52,11 +52,11 @@ env:
   LAGRANGE_V2_DARWIN_ARM64_SHA256: "d7375de075e7d443e1388e0f35e21a1c0ee2b45f8dbd723ef560e34a7be7b33e"
   LAGRANGE_V2_WINDOWS_AMD64_SHA256: "fcc4405cd265b86b347253081246a6fada3b1c8ef21bf7db39b6b80112ae263b"
   YOGURT_BASE_URL: "https://github.com/sealdice/acidify/releases/download/dev"
-  YOGURT_ANDROID_ARM64_SHA256: "a8e2440857afb14e3b7516622cd3abdcfc4bbca8d80bed36765f5571911c10ce"
-  YOGURT_LINUX_ARM64_SHA256: "53833d7f034a663bc731be8e0d84419d04555abfaaffccd9944659026fbbd977"
-  YOGURT_LINUX_AMD64_SHA256: "c691e1ffa73e1d2a81f2caa7602f379075dd2d51fcfc32c83b0c939c39450312"
-  YOGURT_DARWIN_ARM64_SHA256: "6b6b0cf0d1fdc22d415a8d63f6af8f6b5512bcb02abc38b8718cdd35272af8de"
-  YOGURT_WINDOWS_AMD64_SHA256: "1ba226a5aa569cd78ef72158b063a0b27aa7b03e7bc5038f4d51822c84bfb5ae"
+  YOGURT_ANDROID_ARM64_SHA256: "a0cb17abf83fda2d562c623e6b1baf0a75231b3c9500c43af9f1c50b1590609d"
+  YOGURT_LINUX_ARM64_SHA256: "54fac46ead5aee47f7dd353a915eedb19113ce40f19a32f263ae2aa4ceccc837"
+  YOGURT_LINUX_AMD64_SHA256: "31644d919c1d366fb0234e48971d815843821123e67e9b66c74b2226602c9359"
+  YOGURT_DARWIN_ARM64_SHA256: "d341e4cebd341177dc94123cef87448531e0f69f8eaddbbc6b590cf2a28d1fce"
+  YOGURT_WINDOWS_AMD64_SHA256: "1209b46acf37c5c67e30f41c629c92ef7b6ecaee5d806a523d5021e699994e6f"
   NT_SIGN_URL: ${{ secrets.NT_SIGN_URL }}
 
 jobs:
