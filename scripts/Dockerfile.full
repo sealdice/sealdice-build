@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 环境变量也写上，双保险
 ENV TZ=Asia/Shanghai
 
+# 设置工作目录
+WORKDIR /app
+
 # 移入对应文件（固定安装目录 /app，与默认镜像有区别）
 VOLUME ["/app/backups", "/app/data"]
 ARG TARGETARCH
